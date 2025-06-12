@@ -19,8 +19,8 @@ impl Team {
 pub struct Game {
     pub home_team: String,
     pub away_team: String,
-    pub home: u16,
-    pub away: u16,
+    pub home: i32,
+    pub away: i32,
 }
 
 impl Game {
@@ -42,6 +42,15 @@ pub struct Date {
     pub free_team: Option<Team>,
 }
 
+impl Date {
+    fn new(games: Vec<Game>, free_team: Option<Team>) -> Date {
+        Date {
+            games,
+            free_team,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)] // For handling JSON
 pub struct Fixture {
     pub teams: Vec<Team>,
@@ -49,12 +58,21 @@ pub struct Fixture {
 }
 
 impl Fixture {
-    pub fn create_fixture(team_number: u16) -> Fixture {
+    pub fn create_fixture(team_number: i32) -> Fixture {
+        let mut rng = rand::rng();
         let mut teams = vec![];
-        for i in 0..team_number {
+
+        let mut indexes: Vec<i32> = (1..=team_number).collect();
+        for i in indexes.iter() {
             teams.push(Team::new(format!("team{i}")));
         }
-        println!("{:?}", teams);
+
+        // TODO:
+        // Create games for each dates and fixture from all dates
+        //
+        // Create first date from shuffled indexes
+        // Then create all other dates that do not repeat a game (back or forth)
+
         Fixture {
             teams,
             dates: vec![],

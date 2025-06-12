@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 axum = "0.8.4"
 hyper = { version = "1.6.0", features = ["full"]}
+rand = "0.9.1"
 serde = "1.0.219"
 sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio-native-tls"]}
 tokio = { version = "1.45.1", features = ["full"]}
