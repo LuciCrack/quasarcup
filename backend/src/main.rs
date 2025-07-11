@@ -1,7 +1,7 @@
 mod fixture;
 
 use fixture::Fixture;
-use serde::{Serialize, Deserialize};
+use serde::Deserialize;
 use tower_http::cors::{CorsLayer, Any};
 use axum::{
     Json,
@@ -10,10 +10,10 @@ use axum::{
     http::header,
 };
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)] // For handling as JSON 
+#[derive(Deserialize)] // For handling as JSON 
 pub struct FixtureMakerInput {
     pub tournament: String,
-    pub team_number: i32,
+    pub team_number: usize,
 }
 
 #[tokio::main]

@@ -1,33 +1,30 @@
 use std::vec;
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 
-#[derive(Serialize, Deserialize, Debug)] // For handling JSON
+#[derive(Serialize, Debug, Clone)] // For handling JSON
 pub struct Team {
     pub name: String,
 }
 
 impl Team {
     pub fn new(name: String) -> Team {
-        Team {
-            name,
-        }
+        Team { name }
     }
 }
 
-// Might change
-#[derive(Serialize, Deserialize, Debug)] // For handling JSON
+#[derive(Serialize, Debug)] // For handling JSON
 pub struct Game {
-    pub home_team: String,
-    pub away_team: String,
+    pub home_team: Team,
+    pub away_team: Team,
     pub home: i32,
     pub away: i32,
 }
 
 impl Game {
-    fn new(home_team: &str, away_team: &str) -> Game {
+    fn new(home_team: Team, away_team: Team) -> Game {
         Game {
-            home_team: home_team.to_string(),
-            away_team: away_team.to_string(),
+            home_team,
+            away_team,
             home: 0,
             away: 0
         }
@@ -36,46 +33,78 @@ impl Game {
     // score function
 }
 
-#[derive(Serialize, Deserialize, Debug)] // For handling JSON
+#[derive(Serialize, Debug)] // For handling JSON
 pub struct Date {
     pub games: Vec<Game>,
-    pub free_team: Option<Team>,
 }
 
 impl Date {
-    fn new(games: Vec<Game>, free_team: Option<Team>) -> Date {
-        Date {
-            games,
-            free_team,
-        }
+    fn new(games: Vec<Game>) -> Date {
+        Date { games }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)] // For handling JSON
+#[derive(Serialize, Debug)] // For handling JSON
 pub struct Fixture {
     pub teams: Vec<Team>,
     pub dates: Vec<Date>,
 }
 
 impl Fixture {
-    pub fn create_fixture(team_number: i32) -> Fixture {
-        let mut rng = rand::rng();
+    pub fn create_fixture(n: usize) -> Fixture {
+        let mut games = vec![];
         let mut teams = vec![];
-
-        let mut indexes: Vec<i32> = (1..=team_number).collect();
-        for i in indexes.iter() {
+        
+        // Create vector of n teams
+        for i in 0..=n {
             teams.push(Team::new(format!("team{i}")));
         }
 
-        // TODO:
-        // Create games for each dates and fixture from all dates
-        //
-        // Create first date from shuffled indexes
-        // Then create all other dates that do not repeat a game (back or forth)
+        // Create a vector of all posible matches 
+        for i in 0..n {
+            for j in i+1..n {
+                games.push(Game::new(
+                    teams.get(i).unwrap().clone(),
+                    teams.get(j).unwrap().clone()
+                ));
+            }
+        }
+
+        // Free date if not pair amount of teams
+        let mut len = teams.len();
+        if !len% 2 == 0 {
+            teams.push(Team::new(String::from("FREE")));
+        }
+        len = teams.len();
+
+        let date_num = len - 1;
+        let mut dates = vec![];
+
+        // Circle algorithm tingy
+        for _i in 0..date_num - 1 {
+            // For each date, arrange games by pairing first and last
+            let mut date_games = vec![];
+            for t in 0..len / 2 {
+                date_games.push(Game::new(
+                        teams[t].clone(), // First
+                        teams[len - t - 1].clone() // Last
+                ));
+            }
+            dates.push(Date::new(date_games));
+
+            // Then cicle through
+            let last = teams.pop().unwrap(); // Move the last team to the second position
+            teams.insert(1, last); // Pos 0 is fixed
+        }
+
+        // Finally remove FREE placeholder if it exist
+        if len % 2 == 0 {
+            teams.pop();
+        }
 
         Fixture {
             teams,
-            dates: vec![],
+            dates,
         }
     }
 }
