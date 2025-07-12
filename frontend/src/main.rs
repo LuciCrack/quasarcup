@@ -48,8 +48,8 @@ fn App() -> Html {
                 // display the fixture in UI
 
                 // Read and log response
-                let text = resp.text().await.expect("Failed to read response");
-                web_sys::console::log_1(&text.into());
+                let fixture: Fixture = resp.json().await.expect("Failed to deserialize response");
+                web_sys::console::log_1(&format!("{:?}", fixture).into());
             });  
         })
     };
@@ -87,4 +87,25 @@ fn App() -> Html {
 
 fn main() {
     yew::Renderer::<App>::new().render();
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct Team {
+    pub name: String,
+}
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct Game {
+    pub home_team: Team,
+    pub away_team: Team,
+    pub home: i32,
+    pub away: i32,
+}
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct Date {
+    pub games: Vec<Game>,
+}
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct Fixture {
+    pub teams: Vec<Team>,
+    pub dates: Vec<Date>,
 }
