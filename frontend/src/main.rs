@@ -1,6 +1,7 @@
 use yew::prelude::*;
 use gloo_net::http::Request;
 use serde::{Serialize, Deserialize};
+use web_sys::window;
 
 // Model to the data we want to get from form 
 // And then send to the backend
@@ -15,22 +16,27 @@ fn App() -> Html {
     // Variables to store and update local component state
     // holding the current value of the input field
     let tournament = use_state(|| "".to_string());
-    let team_number: UseStateHandle<i32> = use_state(|| "".to_string().parse().unwrap_or(0)); 
+    let team_number: UseStateHandle<i32> = use_state(|| 0); 
+    let fixture: UseStateHandle<Option<Fixture>> = use_state(|| None);
 
     // Called when form is submited via button type="submit"
     let onsubmit = {
         // Cloning state handlers to use inside closure
         let tournament = tournament.clone();
         let team_number = team_number.clone();
+        let fixture = fixture.clone();
 
         Callback::from(move |e: yew::SubmitEvent|{
             e.prevent_default(); // Prevent page reloading and Networks errors when posting
-            
+
             // Collect input values to FixtureMakerInput struct
             let input = FixtureMakerInput { 
                 tournament: (*tournament).clone(),
                 team_number: (*team_number),
             };
+
+            // Move fixture here :D
+            let fixture = fixture.clone();
 
             // Copilot says its async because it runs inside the JS event loop in the browser
             // Imma pretend I understand that
@@ -43,16 +49,53 @@ fn App() -> Html {
                     .await
                     .expect("Failed to send request");
 
-                // *TODO 
-                // recieve and deserialize fixture
-                // display the fixture in UI
+                // Read response
+                let fix = resp.json().await.expect("Failed to deserialize response");
+                fixture.set(Some(fix));
 
-                // Read and log response
-                let fixture: Fixture = resp.json().await.expect("Failed to deserialize response");
-                web_sys::console::log_1(&format!("{:?}", fixture).into());
+                // Log in console
+                // web_sys::console::log_1(&format!("{:?}", fix).into());
             });  
         })
     };
+
+    let reset = {
+        // Clone handles to use inside the closure
+        let tournament = tournament.clone();
+        let team_number = team_number.clone();
+        let fixture = fixture.clone();
+
+        Callback::from(move |_| {
+            // TODO: Update this to be a custom modal rather than a basic confirm dialog
+            if window().unwrap().confirm_with_message("Sure you want to reset? ").unwrap_or(false) {
+                tournament.set("".to_string());
+                team_number.set(0);
+                fixture.set(None);
+            }
+        })
+    };
+
+    // Create the html for the fixture before the actual html! macro
+    let fixture_html = (*fixture).as_ref().map(|fix| fix.dates.iter().enumerate().map(|(i, date)| {
+        html! {
+            <div>
+                <h3>{ format!("Date {}", i + 1) }</h3>
+                <ul>
+                    { for date.games.iter().map(|game| html! {
+                        <li>
+                            if "FREE" == game.home_team.name {
+                                { format!("{} is Free", game.away_team.name) }
+                            } else if "FREE" == game.away_team.name {
+                                { format!("{} is Free", game.home_team.name) }
+                            } else {
+                                { format!("{} vs {}", game.home_team.name, game.away_team.name) }
+                            }
+                        </li>
+                    })}
+                </ul>
+            </div>
+        }
+    }).collect::<Html>());
 
     html! {
         <div>
@@ -81,6 +124,17 @@ fn App() -> Html {
                 />
                 <button type="submit">{ "Create Fixture" }</button>
             </form>
+
+            // Reset button
+            <button type="button" onclick={reset}> { "Reset" } </button>
+
+            { // Display the fixture :D
+                if let Some(html) = fixture_html {
+                    html
+                } else {
+                    html! {}
+                }
+            }
         </div>
     }
 }

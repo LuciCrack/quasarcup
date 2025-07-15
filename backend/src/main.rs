@@ -31,8 +31,10 @@ async fn main() {
         .route("/fixture", post(make_fixture))
         .layer(cors);      
 
-    // run app
+    // Tcp Listener
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+
+    // Run app
     axum::serve(listener, app).await.unwrap();
 }
 
