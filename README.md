@@ -1,5 +1,5 @@
-#Quasar Vup
-##A soccer tournament organizer
+# Quasar Vup
+## A soccer tournament organizer
 
 ---
 
@@ -12,9 +12,9 @@ _**Quasar Cup** is a web application to help anyone easily organize soccer tourn
 
 # Run LocalHost
 * You must have Rust and Cargo installed
-* Install trunk with 'cargo install trunk' and x with ' '
-* Use 'git clone' to get this repo
-* Run both backend and frontend servers using ' '
+* Install trunk with `cargo install trunk` and x with ``
+* Use `git clone` to get this repo
+* Run both backend and frontend servers using ``
 
 
 # Features:
