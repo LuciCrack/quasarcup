@@ -56,13 +56,14 @@ _"Quasar Cup is a web application to help anyone easily organize soccer tourname
 - [x] Create forms for tournament and team creation.
 - [x] Display generated fixture (schedule).
 - [x] Form to submit results.
-- [ ] Display updated standings.
+- [x] Display updated standings.
 
 ### Step 3: **Polish for MVP**
 - [ ] Make the UI user-friendly and not ugly.
 - [ ] Test all features.
 - [ ] Write a clear README (explain what, why, and how).
 - [ ] Record a short pitch/demo video.
+- [ ] Save tournaments to cloud and be able to access later
 
 ---
 
@@ -77,22 +78,36 @@ _"Quasar Cup is a web application to help anyone easily organize soccer tourname
 
 ---
 
-## **Keep Motivated**
-Remember, every time you get a feature working — even a small one — that’s a **win**! Celebrate it. Maybe keep a “changelog” in your README or a notebook so you can see your progress.
+## **Right Now**
 
----
+### **Endpoints and backend-frontend flow**
+A. Create Tournament
 
-## 7. **Next Small Steps**
-**Right now:**  
-- Finish the flow of creating a tournament, adding teams, and generating a fixture.  
-- Get the frontend and backend talking smoothly.
+    POST /tournament
+        Body: { name, team_number }
+        Backend: Save to DB, generate fixture, store, return { tournament_id: 1234 } (or code like P4X9ZQ).
 
-**Once that works:**  
-- Add match result submission.
-- Standings table.
+B. View Tournament
 
----
+    GET /tournament?id=1234
+        Backend: Fetch from DB by ID or code, return all tournament data (teams, fixtures, results).
 
-### 🚀 You’re already making great progress! Each little step is a building block toward your big idea. Keep going, and remember — you’re learning a ton, and that’s the real win here!
+C. Search Tournament
 
----
+    GET /search?code=XXXXXX
+        Backend: Look up by code, redirect or return not found.
+
+D. Update Tournament
+
+    POST /tournament/update_match
+        Body: { tournament_id, date_idx, game_idx, home_score, away_score }
+        Backend: Update DB record for that match.
+
+E. TODO: more features
+
+### **sqlite schema**
+
+    tournaments table: id, name, code, created_at
+    teams table: id, tournament_id, name
+    games table: id, tournament_id, date_idx, game_idx, home_team_id, away_team_id, home_score, away_score
+
