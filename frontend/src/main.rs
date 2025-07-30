@@ -3,13 +3,8 @@ use gloo_net::http::Request;
 use serde::{Serialize, Deserialize};
 use web_sys::window;
 
-// Model to the data we want to get from form 
-// And then send to the backend
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)] // For handling as JSON 
-pub struct FixtureMakerInput {
-    pub tournament: String,
-    pub team_number: i32,
-}
+// TODO:
+// Make page pretty
 
 #[function_component]
 fn App() -> Html {
@@ -25,6 +20,8 @@ fn App() -> Html {
         let tournament = tournament.clone();
         let team_number = team_number.clone();
         let fixture = fixture.clone();
+        
+        // TODO:
 
         Callback::from(move |e: yew::SubmitEvent|{
             e.prevent_default(); // Prevent page reloading and Networks errors when posting
@@ -76,21 +73,61 @@ fn App() -> Html {
     };
 
     // Create the html for the fixture before the actual html! macro
-    let fixture_html = (*fixture).as_ref().map(|fix| fix.dates.iter().enumerate().map(|(i, date)| {
+    let fixture_html = (*fixture).as_ref().map(|fix| fix.dates.iter().enumerate().map(|(date_idx, date)| {
         html! {
             <div>
-                <h3>{ format!("Date {}", i + 1) }</h3>
+                <h3>{ format!("Date {}", date_idx + 1) }</h3>
+                // TODO:
+                // Future-proofing - store data
                 <ul>
-                    { for date.games.iter().map(|game| html! {
-                        <li>
-                            if "FREE" == game.home_team.name {
-                                { format!("{} is Free", game.away_team.name) }
-                            } else if "FREE" == game.away_team.name {
-                                { format!("{} is Free", game.home_team.name) }
-                            } else {
-                                { format!("{} vs {}", game.home_team.name, game.away_team.name) }
-                            }
-                        </li>
+                    { for date.games.iter().enumerate().map(|(game_idx, game)| html! {
+                        <tr>
+                            <td>{ &game.home_team.name }</td>
+                            <td>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={ game.home.to_string() }
+                                    oninput={ {
+                                        let fixture_handle = fixture.clone();
+                                        Callback::from(move |e: InputEvent| {
+                                            let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                                            let value = input.value();
+                                            let mut new_fixture = (*fixture_handle).clone();
+                                            if let Some(ref mut fix) = new_fixture {
+                                                let game = &mut fix.dates[date_idx].games[game_idx];
+                                                game.home = value.parse().unwrap_or(0);
+                                                fixture_handle.set(Some(fix.clone()));
+                                            }
+                                        })
+                                    } }
+                                />
+                            </td>
+                            <td>{ "vs" }</td>
+                            <td>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={game.away.to_string()}
+                                    oninput={
+                                        let fixture_handle = fixture.clone();
+                                        Callback::from(move |e: InputEvent| {
+                                            let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                                            let value = input.value();
+                                            let mut new_fixture = (*fixture_handle).clone();
+                                            if let Some(ref mut fix) = new_fixture {
+                                                let game = &mut fix.dates[date_idx].games[game_idx];
+                                                game.away = value.parse().unwrap_or(0);
+                                                fixture_handle.set(Some(fix.clone()));
+                                            }
+                                        })
+                                    }
+                                />
+                            </td>
+                            <td>{ &game.away_team.name }</td>
+                        </tr>
                     })}
                 </ul>
             </div>
@@ -114,7 +151,7 @@ fn App() -> Html {
                         tournament.set(input.value());
                     })}
                 />
-                <input type="number" min=2 max=1000 placeholder="Number of Teams"
+                <input type="number" min=2 max=999 placeholder="Number of Teams"
                     // same as the tournament, but intended for an i32 
                     value={(*team_number).clone().to_string()}
                     oninput={Callback::from(move |e: InputEvent| {
@@ -143,10 +180,19 @@ fn main() {
     yew::Renderer::<App>::new().render();
 }
 
+// Model to the data we want to get from form 
+// And then send to the backend
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)] // For handling as JSON 
+pub struct FixtureMakerInput {
+    pub tournament: String,
+    pub team_number: i32,
+}
+
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Team {
     pub name: String,
 }
+
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Game {
     pub home_team: Team,
