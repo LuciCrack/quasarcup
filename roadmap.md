@@ -63,7 +63,7 @@ _"Quasar Cup is a web application to help anyone easily organize soccer tourname
 - [ ] Test all features.
 - [ ] Write a clear README (explain what, why, and how).
 - [ ] Record a short pitch/demo video.
-- [ ] Save tournaments to cloud and be able to access later
+- [x] Save tournaments to cloud and be able to access later (WIP)
 
 ---
 
@@ -80,24 +80,25 @@ _"Quasar Cup is a web application to help anyone easily organize soccer tourname
 
 ## **Right Now**
 
+
 ### **Endpoints and backend-frontend flow**
-A. Create Tournament
+A. [x] Create Tournament (WIP)
 
     POST /tournament
         Body: { name, team_number }
         Backend: Save to DB, generate fixture, store, return { tournament_id: 1234 } (or code like P4X9ZQ).
 
-B. View Tournament
+B. [ ] View Tournament
 
     GET /tournament?id=1234
         Backend: Fetch from DB by ID or code, return all tournament data (teams, fixtures, results).
 
-C. Search Tournament
+C. [ ] Search Tournament
 
-    GET /search?code=XXXXXX
+    GET /search?code=XXXX
         Backend: Look up by code, redirect or return not found.
 
-D. Update Tournament
+D. [ ]Update Tournament
 
     POST /tournament/update_match
         Body: { tournament_id, date_idx, game_idx, home_score, away_score }
@@ -105,9 +106,6 @@ D. Update Tournament
 
 E. TODO: more features
 
-### **sqlite schema**
 
-    tournaments table: id, name, code, created_at
-    teams table: id, tournament_id, name
-    games table: id, tournament_id, date_idx, game_idx, home_team_id, away_team_id, home_score, away_score
+
 
