@@ -21,8 +21,6 @@ fn App() -> Html {
         let team_number = team_number.clone();
         let fixture = fixture.clone();
         
-        // TODO:
-
         Callback::from(move |e: yew::SubmitEvent|{
             e.prevent_default(); // Prevent page reloading and Networks errors when posting
 

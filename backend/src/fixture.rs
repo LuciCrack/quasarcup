@@ -14,6 +14,8 @@ impl Team {
 
 #[derive(Serialize, Debug)] // For handling JSON
 pub struct Game {
+    pub game_idx: i32,
+    pub date_idx: i32,
     pub home_team: Team,
     pub away_team: Team,
     pub home: i32,
@@ -21,8 +23,10 @@ pub struct Game {
 }
 
 impl Game {
-    fn new(home_team: Team, away_team: Team) -> Game {
+    fn new(home_team: Team, away_team: Team, game_idx: i32, date_idx: i32) -> Game {
         Game {
+            game_idx,
+            date_idx,
             home_team,
             away_team,
             home: 0,
@@ -65,7 +69,9 @@ impl Fixture {
             for j in i+1..n {
                 games.push(Game::new(
                     teams.get(i).unwrap().clone(),
-                    teams.get(j).unwrap().clone()
+                    teams.get(j).unwrap().clone(),
+                    0,
+                    0
                 ));
             }
         }
@@ -81,20 +87,24 @@ impl Fixture {
         let mut dates = vec![];
 
         // Circle algorithm tingy
-        for i in 0..date_num {
+        for date_idx in 0..date_num {
             // For each date, arrange games by pairing first and last
             let mut date_games = vec![];
-            for t in 0..len / 2 {
+            for game_idx in 0..len / 2 {
                 date_games.push( {
-                    if i % 2 == 0 { // Just avoid team1 to play aways as home
+                    if date_idx % 2 == 0 { // Just avoid team1 to play aways as home
                         Game::new(
-                            teams[t].clone(),
-                            teams[len - t - 1].clone()
+                            teams[game_idx].clone(),
+                            teams[len - game_idx - 1].clone(),
+                            game_idx.try_into().unwrap(),
+                            date_idx.try_into().unwrap()
                         )
                     } else {
                         Game::new(
-                            teams[len - t - 1].clone(),
-                            teams[t].clone()
+                            teams[len - game_idx - 1].clone(),
+                            teams[game_idx].clone(),
+                            game_idx.try_into().unwrap(),
+                            date_idx.try_into().unwrap()
                         )
                     }
                 } );
@@ -104,10 +114,6 @@ impl Fixture {
             // Then cicle through
             let last = teams.pop().unwrap(); // Move the last team to the second position
             teams.insert(1, last); // Pos 0 is fixed
-        }
-
-        if len % 2 == 0 {
-          teams.pop(); 
         }
 
         Fixture {
