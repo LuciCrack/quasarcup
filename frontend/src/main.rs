@@ -1,74 +1,155 @@
 use yew::prelude::*;
+use yew_router::prelude::*;
+#[allow(unused_imports)]
 use gloo_net::http::Request;
 use serde::{Serialize, Deserialize};
-use web_sys::window;
 
 // TODO:
 // Make page pretty
 
+#[derive(Routable, PartialEq, Eq, Clone, Debug)]
+pub enum Route {
+    #[at("/")]
+    Home,
+    #[at("/tournament")]
+    TournamentCreate,
+    #[at("/tournament/:code")]
+    TournamentView { code: String },
+    #[at("/dev")]
+    Dev,
+    #[not_found]
+    #[at("/404")]
+    NotFound,
+}
+
 #[function_component]
 fn App() -> Html {
+    html! {
+        <BrowserRouter>
+            <Switch<Route> render={switch} />
+        </BrowserRouter>
+    }
+}
+
+fn switch(route: Route) -> Html { 
+    match route {
+        Route::Home => html! { <Home /> },
+        Route::TournamentCreate => html! { <TournamentCreate /> },
+        Route::TournamentView { code } => html! { <TournamentView code={code} /> },
+        Route::Dev => html! { <Dev /> },
+        Route::NotFound => html! { <div>{ "404 Not Found" }</div> },
+    }
+}
+
+// TODO: refractor modules
+// move function components for each route
+// to a different module or something
+
+#[function_component(Home)]
+fn home() -> Html {
+    html! { <div>{ "Welcome! Choose create or open tournament." }</div> }
+}
+
+#[function_component(TournamentCreate)]
+fn tournament_create() -> Html {
     // Variables to store and update local component state
     // holding the current value of the input field
     let tournament = use_state(|| "".to_string());
     let team_number: UseStateHandle<i32> = use_state(|| 0); 
-    let fixture: UseStateHandle<Option<Fixture>> = use_state(|| None);
 
     // Called when form is submited via button type="submit"
     let onsubmit = {
         // Cloning state handlers to use inside closure
         let tournament = tournament.clone();
         let team_number = team_number.clone();
-        let fixture = fixture.clone();
         
         Callback::from(move |e: yew::SubmitEvent|{
             e.prevent_default(); // Prevent page reloading and Networks errors when posting
 
             // Collect input values to FixtureMakerInput struct
-            let input = FixtureMakerInput { 
+            let _input = FixtureMakerInput { 
                 tournament: (*tournament).clone(),
                 team_number: (*team_number),
             };
 
-            // Move fixture here :D
-            let fixture = fixture.clone();
+            // TODO: 
+            // Send post to backend
+            // but rather than getting the fixture 
+            // redirect to the created tournament
 
             // Copilot says its async because it runs inside the JS event loop in the browser
             // Imma pretend I understand that
-            wasm_bindgen_futures::spawn_local(async move {
-                let resp = Request::post("http://localhost:3000/fixture")
-                    .header("Content-Type", "application/json")
-                    .body(serde_json::to_string(&input).unwrap()) // Serialize to JSON
-                    .unwrap()
-                    .send()
-                    .await
-                    .expect("Failed to send request");
+//
+//          wasm_bindgen_futures::spawn_local(async move {
+//              let resp = Request::post("http://localhost:3000/fixture")
+//                  .header("Content-Type", "application/json")
+//                  .body(serde_json::to_string(&input).unwrap()) // Serialize to JSON
+//                  .unwrap()
+//                  .send()
+//                  .await
+//                  .expect("Failed to send request");
+//          });  
 
-                // Read response
-                let fix = resp.json().await.expect("Failed to deserialize response");
-                fixture.set(Some(fix));
-
-                // Log in console
-                // web_sys::console::log_1(&format!("{:?}", fix).into());
-            });  
         })
     };
 
-    let reset = {
-        // Clone handles to use inside the closure
-        let tournament = tournament.clone();
-        let team_number = team_number.clone();
-        let fixture = fixture.clone();
+    html! {
+        <div>
+            <form {onsubmit}>
+                // html elements for user input
+                <input type="text" placeholder="Tournament Name"
+                    // set value of the input box to the one stored in Yet state variable,
+                    // derefencing UseStateHandle to get a String and cloning for ownership
+                    value={(*tournament).clone()}
+                    // event handler, closure takes ownership of tournament
+                    oninput={Callback::from(move |e: InputEvent| {
+                        // e is an event object from browser and bla bla bla (did not understand)
+                        let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                        // .value() reads the input box and .set() updates the Yew state variable,
+                        // triggering a re-render if it changes
+                        tournament.set(input.value());
+                    })}
+                />
+                <input type="number" min=2 max=999 placeholder="Number of Teams"
+                    // same as the tournament, but intended for an i32 
+                    value={(*team_number).clone().to_string()}
+                    oninput={Callback::from(move |e: InputEvent| {
+                        let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                        team_number.set(input.value().parse().unwrap_or(0));
+                    })}
+                />
+                <button type="submit">{ "Create Fixture" }</button>
+            </form>
+        </div>
+    }}
 
-        Callback::from(move |_| {
-            // TODO: Update this to be a custom modal rather than a basic confirm dialog
-            if window().unwrap().confirm_with_message("Sure you want to reset? ").unwrap_or(false) {
-                tournament.set("".to_string());
-                team_number.set(0);
-                fixture.set(None);
-            }
-        })
-    };
+#[derive(Properties, PartialEq)]
+struct TournamentViewProps {
+    pub code: String,
+}
+#[function_component(TournamentView)]
+fn tournament_view(props: &TournamentViewProps) -> Html {
+    // Send a request to the backend for the tournament info
+
+    let fixture: UseStateHandle<Option<Fixture>> = use_state(|| None);
+
+    // TODO: Implement reset button after route refractoring
+//   
+//  let reset = {
+//      // Clone handles to use inside the closure
+//      let tournament = tournament.clone();
+//      let team_number = team_number.clone();
+//      let fixture = fixture.clone();
+//
+//      Callback::from(move |_| {
+//          // TODO: Update this to be a custom modal rather than a basic confirm dialog
+//          if window().unwrap().confirm_with_message("Sure you want to reset? ").unwrap_or(false) {
+//              tournament.set("".to_string());
+//              team_number.set(0);
+//              fixture.set(None);
+//          }
+//      })
+//  };
 
     // Create the html for the fixture before the actual html! macro
     let fixture_html = (*fixture).as_ref().map(|fix| fix.dates.iter().enumerate().map(|(date_idx, date)| {
@@ -131,47 +212,26 @@ fn App() -> Html {
             </div>
         }
     }).collect::<Html>());
-
-    html! {
+    html! { 
         <div>
-            <form {onsubmit}>
-                // html elements for user input
-                <input type="text" placeholder="Tournament Name"
-                    // set value of the input box to the one stored in Yet state variable,
-                    // derefencing UseStateHandle to get a String and cloning for ownership
-                    value={(*tournament).clone()}
-                    // event handler, closure takes ownership of tournament
-                    oninput={Callback::from(move |e: InputEvent| {
-                        // e is an event object from browser and bla bla bla (did not understand)
-                        let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                        // .value() reads the input box and .set() updates the Yew state variable,
-                        // triggering a re-render if it changes
-                        tournament.set(input.value());
-                    })}
-                />
-                <input type="number" min=2 max=999 placeholder="Number of Teams"
-                    // same as the tournament, but intended for an i32 
-                    value={(*team_number).clone().to_string()}
-                    oninput={Callback::from(move |e: InputEvent| {
-                        let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                        team_number.set(input.value().parse().unwrap_or(0));
-                    })}
-                />
-                <button type="submit">{ "Create Fixture" }</button>
-            </form>
-
-            // Reset button
-            <button type="button" onclick={reset}> { "Reset" } </button>
-
+            { format!("Viewing tournament: {}", props.code) }
             { // Display the fixture :D
                 if let Some(html) = fixture_html {
                     html
                 } else {
                     html! {}
                 }
+                // TODO:
+                // Reset button
+                // <button type="button" onclick={reset}> { "Reset" } </button>
             }
-        </div>
+        </div> 
     }
+}
+
+#[function_component(Dev)]
+fn dev() -> Html {
+    html! { <div>{ "Dev page for DB reset" }</div> }
 }
 
 fn main() {
