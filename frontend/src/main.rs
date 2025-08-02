@@ -1,3 +1,4 @@
+use web_sys::window;
 use yew::prelude::*;
 use yew_router::prelude::*;
 #[allow(unused_imports)]
@@ -57,6 +58,8 @@ fn tournament_create() -> Html {
     let tournament = use_state(|| "".to_string());
     let team_number: UseStateHandle<i32> = use_state(|| 0); 
 
+    let navigator = use_navigator().unwrap();
+
     // Called when form is submited via button type="submit"
     let onsubmit = {
         // Cloning state handlers to use inside closure
@@ -67,10 +70,12 @@ fn tournament_create() -> Html {
             e.prevent_default(); // Prevent page reloading and Networks errors when posting
 
             // Collect input values to FixtureMakerInput struct
-            let _input = FixtureMakerInput { 
+            let input = FixtureMakerInput { 
                 tournament: (*tournament).clone(),
                 team_number: (*team_number),
             };
+
+            let navigator = navigator.clone();
 
             // TODO: 
             // Send post to backend
@@ -79,16 +84,18 @@ fn tournament_create() -> Html {
 
             // Copilot says its async because it runs inside the JS event loop in the browser
             // Imma pretend I understand that
-//
-//          wasm_bindgen_futures::spawn_local(async move {
-//              let resp = Request::post("http://localhost:3000/fixture")
-//                  .header("Content-Type", "application/json")
-//                  .body(serde_json::to_string(&input).unwrap()) // Serialize to JSON
-//                  .unwrap()
-//                  .send()
-//                  .await
-//                  .expect("Failed to send request");
-//          });  
+            let mut code = String::new();
+
+            wasm_bindgen_futures::spawn_local(async move {
+                code = Request::post("http://localhost:3000/create_tournament")
+                    .header("Content-Type", "application/json")
+                    .body(serde_json::to_string(&input).unwrap())
+                    .unwrap().send().await
+                    .expect("Failed to send post request")
+                    .text().await.unwrap();
+                navigator.push(&Route::TournamentView { code })
+            });
+
 
         })
     };
@@ -132,24 +139,6 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
     // Send a request to the backend for the tournament info
 
     let fixture: UseStateHandle<Option<Fixture>> = use_state(|| None);
-
-    // TODO: Implement reset button after route refractoring
-//   
-//  let reset = {
-//      // Clone handles to use inside the closure
-//      let tournament = tournament.clone();
-//      let team_number = team_number.clone();
-//      let fixture = fixture.clone();
-//
-//      Callback::from(move |_| {
-//          // TODO: Update this to be a custom modal rather than a basic confirm dialog
-//          if window().unwrap().confirm_with_message("Sure you want to reset? ").unwrap_or(false) {
-//              tournament.set("".to_string());
-//              team_number.set(0);
-//              fixture.set(None);
-//          }
-//      })
-//  };
 
     // Create the html for the fixture before the actual html! macro
     let fixture_html = (*fixture).as_ref().map(|fix| fix.dates.iter().enumerate().map(|(date_idx, date)| {
@@ -221,9 +210,6 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
                 } else {
                     html! {}
                 }
-                // TODO:
-                // Reset button
-                // <button type="button" onclick={reset}> { "Reset" } </button>
             }
         </div> 
     }
@@ -231,7 +217,55 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
 
 #[function_component(Dev)]
 fn dev() -> Html {
-    html! { <div>{ "Dev page for DB reset" }</div> }
+    let password = use_state(|| "".to_string());
+    let result = use_state(|| "".to_string());
+
+    let onsubmit = {
+        let password = password.clone();
+        let result = result.clone();
+
+        Callback::from(move |e: yew::SubmitEvent| {
+            e.prevent_default();
+            
+            let password = password.clone();
+            let result = result.clone();
+
+            if window().unwrap().confirm_with_message(
+                " WARNING: DELETING ALL DATA IN THE DATABASE, ARE YOU SURE?"
+                ).unwrap_or(false) {
+                // Send post to the backend to nuke the database
+                wasm_bindgen_futures::spawn_local(async move {
+                    result.set(
+                        Request::post("http://localhost:3000/reset_database")
+                            .header("Content-Type", "application/json")
+                            .body(&*password)
+                            .unwrap().send().await
+                            .expect("Password Failed")
+                            .text().await.unwrap()
+                    )                
+                }); 
+            }
+        })
+    };
+
+    html! { 
+        <div>
+            { "Dev page for DB reset" }
+            <form { onsubmit }>
+                <input type="password" placeholder="Secret Password"
+                    value={ (*password).clone() }
+                    // This is kinda lame having to do the updating the value myself,
+                    // the yew crate might want to make this a bit simpler :D
+                    oninput={ Callback::from(move |e: InputEvent| {
+                        let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                        password.set(input.value());
+                    })}
+                />
+                <button type="submit" > { "DELETE ALL" } </button>
+            </form>
+            { (*result).clone() }
+        </div> 
+    }
 }
 
 fn main() {

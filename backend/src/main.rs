@@ -15,12 +15,6 @@ use axum::{
     extract::State,
 };
 
-#[derive(Deserialize)] // For handling as JSON 
-pub struct FixtureMakerInput {
-    pub tournament: String,
-    pub team_number: usize,
-}
-
 #[tokio::main]
 async fn main() {
     // add a Cross-Origin Resource Sharing (cors) middleware
@@ -37,9 +31,11 @@ async fn main() {
         .expect("Failed to connect to database");
 
     // Build the application with routes
+
     let app = Router::new()
         // Routes with get() or post() methods, each will call a handler
-        .route("/fixture", post(make_fixture))
+        .route("/create_tournament", post(create_tournament))
+        .route("/reset_database", post(nuke_database))
         .with_state(db.clone())
         .layer(cors);      
 
@@ -50,26 +46,24 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn make_fixture(
+async fn create_tournament(
     State(db): State<SqlitePool>,
-    Json(payload): Json<FixtureMakerInput>
-) -> axum::Json<Fixture> {
-    let fixture = Fixture::create_fixture(payload.team_number);
+    Json(input): Json<CreateTournamentInput>
+) -> axum::Json<String> {
+    let fixture = Fixture::create_fixture(input.team_number);
     let code = generate_code(&db).await;
-    let name = payload.tournament;
+    let name = input.tournament_name;
 
     // TODO: Add match result for error handling
-    let _result = save_fixture_to_database(&db, &fixture, code, name).await;
+    let _result = save_fixture_to_database(&db, &fixture, &code, name).await;
 
-    axum::Json(
-        fixture
-    )
+    axum::Json(code)
 }
 
 async fn save_fixture_to_database(
     db: &SqlitePool, 
     fixture: &Fixture, 
-    code: String,
+    code: &String,
     name: String
 ) -> Result<i64, sqlx::Error> {    
     // First create a tournament, returning its id for later use.
@@ -117,6 +111,23 @@ async fn save_fixture_to_database(
     Ok(tournament_id)
 }
 
+
+async fn nuke_database(
+    State(db): State<SqlitePool>,
+    input: String
+) -> String {
+    // Check password (really lame check) and reset database
+    if input == "0123456789" {
+        sqlx::query!("DELETE FROM games").execute(&db).await.expect("COULD NOT DELETE games TABLE");
+        sqlx::query!("DELETE FROM teams").execute(&db).await.expect("COULD NOT DELETE teams TABLE");
+        sqlx::query!("DELETE FROM tournaments").execute(&db).await.expect("COULD NOT DELETE tournaments TABLE");
+    } else {
+        return "WRONG PASSWORD".to_string()
+    }
+
+    "ALL GOOD".to_string()
+}
+
 async fn generate_code(db: &SqlitePool) -> String {
     loop {
         let code = format!("{:04}", rand::rng().random_range(0..=9999));
@@ -132,4 +143,10 @@ async fn generate_code(db: &SqlitePool) -> String {
             return code;
         }    
     }
+}
+
+#[derive(Deserialize)] // For handling as JSON 
+pub struct CreateTournamentInput {
+    pub tournament_name: String,
+    pub team_number: usize,
 }
