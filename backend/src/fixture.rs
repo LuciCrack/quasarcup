@@ -1,5 +1,5 @@
-use std::vec;
 use serde::Serialize;
+use std::vec;
 
 #[derive(Serialize, Debug, Clone)] // For handling JSON
 pub struct Team {
@@ -12,6 +12,8 @@ impl Team {
     }
 }
 
+// TODO:
+// Free Team
 #[derive(Serialize, Debug)] // For handling JSON
 pub struct Game {
     pub game_idx: i32,
@@ -30,7 +32,7 @@ impl Game {
             home_team,
             away_team,
             home: 0,
-            away: 0
+            away: 0,
         }
     }
     // TODO:
@@ -58,20 +60,20 @@ impl Fixture {
     pub fn create_fixture(n: usize) -> Fixture {
         let mut games = vec![];
         let mut teams = vec![];
-        
+
         // Create vector of n teams
         for i in 1..=n {
             teams.push(Team::new(format!("team{i}")));
         }
 
-        // Create a vector of all posible matches 
+        // Create a vector of all posible matches
         for i in 0..n {
-            for j in i+1..n {
+            for j in i + 1..n {
                 games.push(Game::new(
                     teams.get(i).unwrap().clone(),
                     teams.get(j).unwrap().clone(),
                     0,
-                    0
+                    0,
                 ));
             }
         }
@@ -91,23 +93,24 @@ impl Fixture {
             // For each date, arrange games by pairing first and last
             let mut date_games = vec![];
             for game_idx in 0..len / 2 {
-                date_games.push( {
-                    if date_idx % 2 == 0 { // Just avoid team1 to play aways as home
+                date_games.push({
+                    if date_idx % 2 == 0 {
+                        // Just avoid team1 to play aways as home
                         Game::new(
                             teams[game_idx].clone(),
                             teams[len - game_idx - 1].clone(),
                             game_idx.try_into().unwrap(),
-                            date_idx.try_into().unwrap()
+                            date_idx.try_into().unwrap(),
                         )
                     } else {
                         Game::new(
                             teams[len - game_idx - 1].clone(),
                             teams[game_idx].clone(),
                             game_idx.try_into().unwrap(),
-                            date_idx.try_into().unwrap()
+                            date_idx.try_into().unwrap(),
                         )
                     }
-                } );
+                });
             }
             dates.push(Date::new(date_games));
 
@@ -116,9 +119,6 @@ impl Fixture {
             teams.insert(1, last); // Pos 0 is fixed
         }
 
-        Fixture {
-            teams,
-            dates,
-        }
+        Fixture { teams, dates }
     }
 }
