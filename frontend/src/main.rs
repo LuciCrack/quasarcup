@@ -35,7 +35,7 @@ fn switch(route: Route) -> Html {
     match route {
         Route::Home => html! { <Home /> },
         Route::TournamentCreate => html! { <TournamentCreate /> },
-        Route::TournamentView { code } => html! { <TournamentView code={code} /> },
+        Route::TournamentView { code } => html! { <TournamentView code={ code } /> },
         Route::Dev => html! { <Dev /> },
         Route::NotFound => html! { <div>{ "404 Not Found" }</div> },
     }
@@ -55,7 +55,7 @@ fn tournament_create() -> Html {
     // Variables to store and update local component state
     // holding the current value of the input field
     let tournament = use_state(|| "".to_string());
-    let team_number: UseStateHandle<i32> = use_state(|| 0); 
+    let team_number: UseStateHandle<usize> = use_state(|| 0); 
 
     let navigator = use_navigator().unwrap();
 
@@ -70,7 +70,7 @@ fn tournament_create() -> Html {
 
             // Collect input values to FixtureMakerInput struct
             let input = FixtureMakerInput { 
-                tournament: (*tournament).clone(),
+                tournament_name: (*tournament).clone(),
                 team_number: (*team_number),
             };
 
@@ -78,16 +78,15 @@ fn tournament_create() -> Html {
 
             // Copilot says its async because it runs inside the JS event loop in the browser
             // Imma pretend I understand that
-            let mut code = String::new();
 
             wasm_bindgen_futures::spawn_local(async move {
-                code = Request::post("http://localhost:3000/create_tournament")
+                let code = Request::post("http://localhost:2000/create_tournament")
                     .header("Content-Type", "application/json")
                     .body(serde_json::to_string(&input).unwrap())
                     .unwrap().send().await
                     .expect("Failed to send post request")
                     .text().await.unwrap();
-
+                
                 navigator.push(&Route::TournamentView { code });
             });
         })
@@ -123,7 +122,7 @@ fn tournament_create() -> Html {
         </div>
     }}
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Debug, Clone, Eq)]
 struct TournamentViewProps {
     pub code: String,
 }
@@ -138,7 +137,7 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
 
         // Remember to always move clones into async blocks!
         wasm_bindgen_futures::spawn_local(async move {
-            let resp = Request::get("http://localhost:3000/get_tournament")
+            let resp = Request::get("http://localhost:2000/get_tournament")
                 .body(code).unwrap()
                 .send().await.expect("Failed to send get request");
 
@@ -242,7 +241,7 @@ fn dev() -> Html {
                 // Send post to the backend to nuke the database
                 wasm_bindgen_futures::spawn_local(async move {
                     result.set(
-                        Request::post("http://localhost:3000/reset_database")
+                        Request::post("http://localhost:2000/reset_database")
                             .header("Content-Type", "application/json")
                             .body(&*password)
                             .unwrap().send().await
@@ -283,8 +282,8 @@ fn main() {
 // And then send to the backend
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)] // For handling as JSON 
 pub struct FixtureMakerInput {
-    pub tournament: String,
-    pub team_number: i32,
+    pub tournament_name: String,
+    pub team_number: usize,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]

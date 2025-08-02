@@ -45,7 +45,7 @@ async fn main() {
         .layer(cors);
 
     // Tcp Listener
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:2000").await.unwrap();
 
     // Run app
     axum::serve(listener, app).await.unwrap();
@@ -54,7 +54,7 @@ async fn main() {
 async fn create_tournament(
     State(db): State<SqlitePool>,
     Json(input): Json<CreateTournamentInput>,
-) -> axum::Json<String> {
+) -> String {
     let fixture = Fixture::create_fixture(input.team_number);
     let code = generate_code(&db).await;
     let name = input.tournament_name;
@@ -62,7 +62,7 @@ async fn create_tournament(
     // TODO: Add match result for error handling
     let _result = save_fixture_to_database(&db, &fixture, &code, name).await;
 
-    axum::Json(code)
+    code
 }
 
 async fn get_tournament(
@@ -176,7 +176,8 @@ async fn generate_code(db: &SqlitePool) -> String {
         .unwrap();
 
         if exists.is_none() {
-            // Return if it is unique, other wise loop and try again
+            // return and stop loop if code is unique
+            // other wise loop and try again
             return code;
         }
     }
