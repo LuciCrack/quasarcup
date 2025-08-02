@@ -1,7 +1,6 @@
 use web_sys::window;
 use yew::prelude::*;
 use yew_router::prelude::*;
-#[allow(unused_imports)]
 use gloo_net::http::Request;
 use serde::{Serialize, Deserialize};
 
@@ -77,11 +76,6 @@ fn tournament_create() -> Html {
 
             let navigator = navigator.clone();
 
-            // TODO: 
-            // Send post to backend
-            // but rather than getting the fixture 
-            // redirect to the created tournament
-
             // Copilot says its async because it runs inside the JS event loop in the browser
             // Imma pretend I understand that
             let mut code = String::new();
@@ -93,10 +87,9 @@ fn tournament_create() -> Html {
                     .unwrap().send().await
                     .expect("Failed to send post request")
                     .text().await.unwrap();
-                navigator.push(&Route::TournamentView { code })
+
+                navigator.push(&Route::TournamentView { code });
             });
-
-
         })
     };
 
@@ -137,8 +130,21 @@ struct TournamentViewProps {
 #[function_component(TournamentView)]
 fn tournament_view(props: &TournamentViewProps) -> Html {
     // Send a request to the backend for the tournament info
-
     let fixture: UseStateHandle<Option<Fixture>> = use_state(|| None);
+    
+    {
+        let code = props.code.clone();
+        let fixture = fixture.clone();
+
+        // Remember to always move clones into async blocks!
+        wasm_bindgen_futures::spawn_local(async move {
+            let resp = Request::get("http://localhost:3000/get_tournament")
+                .body(code).unwrap()
+                .send().await.expect("Failed to send get request");
+
+            fixture.set(resp.json().await.expect("Failed to deserialize"));
+        });
+    }
 
     // Create the html for the fixture before the actual html! macro
     let fixture_html = (*fixture).as_ref().map(|fix| fix.dates.iter().enumerate().map(|(date_idx, date)| {
@@ -232,7 +238,7 @@ fn dev() -> Html {
 
             if window().unwrap().confirm_with_message(
                 " WARNING: DELETING ALL DATA IN THE DATABASE, ARE YOU SURE?"
-                ).unwrap_or(false) {
+            ).unwrap_or(false) {
                 // Send post to the backend to nuke the database
                 wasm_bindgen_futures::spawn_local(async move {
                     result.set(
@@ -251,7 +257,8 @@ fn dev() -> Html {
     html! { 
         <div>
             { "Dev page for DB reset" }
-            <form { onsubmit }>
+            <form { onsubmit }> // onsubmit={onsubmit}, could also do something like 
+                                // onsubmit={ custom_name }
                 <input type="password" placeholder="Secret Password"
                     value={ (*password).clone() }
                     // This is kinda lame having to do the updating the value myself,
