@@ -82,30 +82,76 @@ _"Quasar Cup is a web application to help anyone easily organize soccer tourname
 
 
 ### **Endpoints and backend-frontend flow**
-A. [x] Create Tournament (WIP)
+A. [x] Create Tournament
 
     POST /tournament
         Body: { name, team_number }
         Backend: Save to DB, generate fixture, store, return { tournament_id: 1234 } (or code like P4X9ZQ).
 
-B. [ ] View Tournament
+B. [x] View Tournament (WIP)
 
     GET /tournament?id=1234
         Backend: Fetch from DB by ID or code, return all tournament data (teams, fixtures, results).
 
 C. [ ] Search Tournament
 
+    Using about the same as View Tournament
+
     GET /search?code=XXXX
         Backend: Look up by code, redirect or return not found.
 
-D. [ ]Update Tournament
+D. [ ] Update Tournament
 
     POST /tournament/update_match
         Body: { tournament_id, date_idx, game_idx, home_score, away_score }
         Backend: Update DB record for that match.
 
-E. TODO: more features
+E. [x] Dev Only: Nuke DB
+
+    WARNING: ONLY USE WHEN DEVELOPING
+
+    POST /dev 
+        Body: secret password
+        Backend: Nuke DB
 
 
+### ** Frontend Routes ** 
+A LOT OF REFRACTORING
 
+A. [x] / 
+    
+    [x] RENDERS FINE
+    [x] Buttons for re routing to create and view tournaments
+
+B. [x] /tournament
+
+    CREATE TOURNAMENT
+
+C. [x] /tournament/:code or /tournament?code=XXXX (WIP)
+
+    Having a bit of trouble, will need to refractor a lot of stuff in the backend first :D
+
+D. [x] /dev 
+    
+    For nuking the database :D
+
+### ** Refractor backend structs **
+UHHH
+
+A. [ ] Games have a FREE handler or something
+B. [ ] Create a tournament struct with different fixture n stuff
+
+    Just to order my mind lol
+    Right now it is a bit hard to understand
+    
+    Tournament - Name 
+               - Dates 
+               - Teams
+
+    Remove Fixture structure, only use Dates 
+
+C. [ ] Define what will be sent back to the frontend when trying to search or view a page
+
+    The new Tournament struct maybe will be enough for rendering all that is needed
+    
 
