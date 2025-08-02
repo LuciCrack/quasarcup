@@ -23,7 +23,7 @@ _"Quasar Cup is a web application to help anyone easily organize soccer tourname
 8. **README and Pitch Video**  
    - Explain what it does, how to use, and a demo.
 
-### B. ** Nice-to-Have/Stretch Goals **
+### B. **Nice-to-Have/Stretch Goals**
 - **Edit teams after creation.**
 - **Edit match dates or results.**
 - **Basic player management (add players to teams, track goals).**
