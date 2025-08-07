@@ -23,7 +23,7 @@ _"Quasar Cup is a web application to help anyone easily organize soccer tourname
 8. **README and Pitch Video**  
    - Explain what it does, how to use, and a demo.
 
-### B. **Nice-to-Have/Stretch Goals **
+### B. **Nice-to-Have/Stretch Goals**
 - **Edit teams after creation.**
 - **Edit match dates or results.**
 - **Basic player management (add players to teams, track goals).**
@@ -82,6 +82,9 @@ _"Quasar Cup is a web application to help anyone easily organize soccer tourname
 
 
 ### **Endpoints and backend-frontend flow**
+**Creating frontend routes for each action, send post request for the data required to the backend** 
+
+
 A. [x] Create Tournament
 
     POST /tournament
@@ -92,6 +95,8 @@ B. [x] View Tournament (WIP)
 
     GET /tournament?id=1234
         Backend: Fetch from DB by ID or code, return all tournament data (teams, fixtures, results).
+
+    Matches are a bit weird but it work! Still WIP tho
 
 C. [ ] Search Tournament
 
@@ -115,31 +120,11 @@ E. [x] Dev Only: Nuke DB
         Backend: Nuke DB
 
 
-### ** Frontend Routes ** 
-A LOT OF REFRACTORING
-
-A. [x] / 
-    
-    [x] RENDERS FINE
-    [x] Buttons for re routing to create and view tournaments
-
-B. [x] /tournament
-
-    CREATE TOURNAMENT
-
-C. [x] /tournament/:code or /tournament?code=XXXX (WIP)
-
-    Having a bit of trouble, will need to refractor a lot of stuff in the backend first :D
-
-D. [x] /dev 
-    
-    For nuking the database :D
-
 ### ** Refractor backend structs **
 UHHH
 
 A. [ ] Games have a FREE handler or something
-B. [ ] Create a tournament struct with different fixture n stuff
+B. [x] Create a tournament struct with different fixture n stuff
 
     Just to order my mind lol
     Right now it is a bit hard to understand
@@ -150,7 +135,9 @@ B. [ ] Create a tournament struct with different fixture n stuff
 
     Remove Fixture structure, only use Dates 
 
-C. [ ] Define what will be sent back to the frontend when trying to search or view a page
+    DONE !!!
+
+C. [x] Define what will be sent back to the frontend when trying to search or view a page
 
     The new Tournament struct maybe will be enough for rendering all that is needed
     
