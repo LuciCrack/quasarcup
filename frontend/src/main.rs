@@ -129,29 +129,38 @@ struct TournamentViewProps {
 #[function_component(TournamentView)]
 fn tournament_view(props: &TournamentViewProps) -> Html {
     // Send a request to the backend for the tournament info
-    let fixture: UseStateHandle<Option<Fixture>> = use_state(|| None);
-    
+    let tournament: UseStateHandle<Option<Tournament>> = use_state(|| None);
+
     {
         let code = props.code.clone();
-        let fixture = fixture.clone();
+        let tournament = tournament.clone();
 
-        // Remember to always move clones into async blocks!
-        wasm_bindgen_futures::spawn_local(async move {
-            let resp = Request::get("http://localhost:2000/get_tournament")
-                .body(code).unwrap()
-                .send().await.expect("Failed to send get request");
+        use_effect_with(
+            (),
+            move |_| {
+                // Remember to always move clones into async blocks!
+                wasm_bindgen_futures::spawn_local(async move {
+                    let resp = Request::post("http://localhost:2000/get_tournament")
+                        .header("Content-Type", "application/json")
+                        .body(code).unwrap()
+                        .send().await.expect("Failed to send get request");
+                    println!("get request sent!");
 
-            fixture.set(resp.json().await.expect("Failed to deserialize"));
-        });
+                    tournament.set(resp.json().await.expect("Failed to deserialize"));
+                });
+            }
+        )
     }
 
-    // Create the html for the fixture before the actual html! macro
-    let fixture_html = (*fixture).as_ref().map(|fix| fix.dates.iter().enumerate().map(|(date_idx, date)| {
+    // Create the html for the tournament before the actual html! macro
+    // TODO:
+    // Update scores to the backend
+    // Put more tournament info, not only fixture
+    /*
+    let thtml = (*tournament).as_ref().map(|fix| fix.matches.iter().enumerate().map(|(date_idx, date)| {
         html! {
             <div>
                 <h3>{ format!("Date {}", date_idx + 1) }</h3>
-                // TODO:
-                // Future-proofing - store data
                 <ul>
                     { for date.games.iter().enumerate().map(|(game_idx, game)| html! {
                         <tr>
@@ -163,13 +172,13 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
                                     max="100"
                                     value={ game.home.to_string() }
                                     oninput={ {
-                                        let fixture_handle = fixture.clone();
+                                        let fixture_handle = tournament.clone();
                                         Callback::from(move |e: InputEvent| {
                                             let input: web_sys::HtmlInputElement = e.target_unchecked_into();
                                             let value = input.value();
                                             let mut new_fixture = (*fixture_handle).clone();
                                             if let Some(ref mut fix) = new_fixture {
-                                                let game = &mut fix.dates[date_idx].games[game_idx];
+                                                let game = &mut fix.matches[date_idx].games[game_idx];
                                                 game.home = value.parse().unwrap_or(0);
                                                 fixture_handle.set(Some(fix.clone()));
                                             }
@@ -185,13 +194,13 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
                                     max="100"
                                     value={game.away.to_string()}
                                     oninput={
-                                        let fixture_handle = fixture.clone();
+                                        let fixture_handle = tournament.clone();
                                         Callback::from(move |e: InputEvent| {
                                             let input: web_sys::HtmlInputElement = e.target_unchecked_into();
                                             let value = input.value();
                                             let mut new_fixture = (*fixture_handle).clone();
                                             if let Some(ref mut fix) = new_fixture {
-                                                let game = &mut fix.dates[date_idx].games[game_idx];
+                                                let game = &mut fix.matches[date_idx].games[game_idx];
                                                 game.away = value.parse().unwrap_or(0);
                                                 fixture_handle.set(Some(fix.clone()));
                                             }
@@ -210,13 +219,26 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
         <div>
             { format!("Viewing tournament: {}", props.code) }
             { // Display the fixture :D
-                if let Some(html) = fixture_html {
+                if let Some(html) = thtml {
                     html
                 } else {
                     html! {}
                 }
             }
         </div> 
+    }
+    */
+    
+    html!{
+        <div>
+            {
+                if let Some(t) = &*tournament {
+                    html! { <pre>{ format!("{:?}", t) }</pre> }
+                } else {
+                    html! { "Loading..." }
+                }
+            }
+        </div>
     }
 }
 
@@ -293,6 +315,8 @@ pub struct Team {
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Game {
+    pub game_idx: i32,
+    pub date_idx: i32,
     pub home_team: Team,
     pub away_team: Team,
     pub home: i32,
@@ -301,9 +325,11 @@ pub struct Game {
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Date {
     pub games: Vec<Game>,
+    pub date_idx: usize,
 }
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct Fixture {
+pub struct Tournament {
+    pub name: String,
     pub teams: Vec<Team>,
-    pub dates: Vec<Date>,
+    pub matches: Vec<Date>
 }

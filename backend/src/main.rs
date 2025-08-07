@@ -1,23 +1,19 @@
-mod fixture;
+mod tournament;
 
 use axum::{
     Json, 
     Router, 
     extract::State, 
     http::{self, header},
-    routing::{post, get}
+    routing::post
 };
-use fixture::Fixture;
+
+use tournament::Tournament;
 use rand::Rng;
 use serde::Deserialize;
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 use std::collections::HashMap;
 use tower_http::cors::{Any, CorsLayer};
-
-// TODO: refractor structures
-// Tournament: - Name
-//             - Fixture or straight up Dates
-//             - Teams
 
 #[tokio::main]
 async fn main() {
@@ -40,7 +36,7 @@ async fn main() {
         // Routes with get() or post() methods, each will call a handler
         .route("/create_tournament", post(create_tournament))
         .route("/reset_database", post(nuke_database))
-        .route("/get_tournament", get(get_tournament))
+        .route("/get_tournament", post(get_tournament))
         .with_state(db.clone())
         .layer(cors);
 
@@ -55,42 +51,36 @@ async fn create_tournament(
     State(db): State<SqlitePool>,
     Json(input): Json<CreateTournamentInput>,
 ) -> String {
-    let fixture = Fixture::create_fixture(input.team_number);
+    let tournament = Tournament::new(input.tournament_name, input.team_number);
     let code = generate_code(&db).await;
-    let name = input.tournament_name;
 
     // TODO: Add match result for error handling
-    let _result = save_fixture_to_database(&db, &fixture, &code, name).await;
+    let _result = save_fixture_to_database(&db, &tournament, &code).await;
 
     code
 }
 
+// Please make this code better :D
 async fn get_tournament(
-    State(_db): State<SqlitePool>,
-    _code: String,
-) -> axum::Json<Option<Fixture>> {
-    // TODO:
-    // get data from data base using code
-    // send fixture if it exists back to the front end 
-    // enought to render
-    // maybe not exactly Json<Fixture>
-    // send None if code is not valid
-    let fixture = None;
+    State(db): State<SqlitePool>,
+    code: String,
+) -> axum::Json<Option<Tournament>> {
+    let tournament = Tournament::deserialize_from_db(code, &db).await;
+
     Json(
-        fixture
+        tournament
     )
 }
 
 async fn save_fixture_to_database(
     db: &SqlitePool,
-    fixture: &Fixture,
+    tournament: &Tournament,
     code: &String,
-    name: String,
 ) -> Result<i64, sqlx::Error> {
     // First create a tournament, returning its id for later use.
     let tournament_id = sqlx::query!(
         "INSERT INTO tournaments (name, code) VALUES (?, ?) RETURNING id",
-        name,
+        tournament.name,
         code
     )
     .fetch_one(db)
@@ -99,7 +89,7 @@ async fn save_fixture_to_database(
 
     // Create teams, hashing name and id for later use
     let mut team_id_map = HashMap::new();
-    for team in fixture.teams.iter() {
+    for team in tournament.teams.iter() {
         if team.name == "FREE" {
             continue;
         } // Don't insert "FREE" team
@@ -116,7 +106,7 @@ async fn save_fixture_to_database(
     }
 
     // Finally, insert every game from every date into database
-    for date in fixture.dates.iter() {
+    for date in tournament.matches.iter() {
         for game in date.games.iter() {
             // Dont create games for FREE dates
             if game.home_team.name == "FREE" || game.away_team.name == "FREE" {
