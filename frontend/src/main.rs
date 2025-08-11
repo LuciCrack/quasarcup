@@ -151,13 +151,15 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
             }
         )
     }
+    
+    println!(" {:?} ", *tournament);
 
     // Create the html for the tournament before the actual html! macro
     // TODO:
     // Update scores to the backend
     // Put more tournament info, not only fixture
-    /*
-    let thtml = (*tournament).as_ref().map(|fix| fix.matches.iter().enumerate().map(|(date_idx, date)| {
+    let tournament_html = (*tournament).as_ref().map(|fix| fix.matches.iter().enumerate().map(|(date_idx, date)| {
+        web_sys::console::log_1(&format!("Date #{}: {:?}", date_idx, date).into());
         html! {
             <div>
                 <h3>{ format!("Date {}", date_idx + 1) }</h3>
@@ -172,15 +174,15 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
                                     max="100"
                                     value={ game.home.to_string() }
                                     oninput={ {
-                                        let fixture_handle = tournament.clone();
+                                        let tournament = tournament.clone();
                                         Callback::from(move |e: InputEvent| {
                                             let input: web_sys::HtmlInputElement = e.target_unchecked_into();
                                             let value = input.value();
-                                            let mut new_fixture = (*fixture_handle).clone();
+                                            let mut new_fixture = (*tournament).clone();
                                             if let Some(ref mut fix) = new_fixture {
                                                 let game = &mut fix.matches[date_idx].games[game_idx];
                                                 game.home = value.parse().unwrap_or(0);
-                                                fixture_handle.set(Some(fix.clone()));
+                                                tournament.set(Some(fix.clone()));
                                             }
                                         })
                                     } }
@@ -194,15 +196,15 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
                                     max="100"
                                     value={game.away.to_string()}
                                     oninput={
-                                        let fixture_handle = tournament.clone();
+                                        let tournament = tournament.clone();
                                         Callback::from(move |e: InputEvent| {
                                             let input: web_sys::HtmlInputElement = e.target_unchecked_into();
                                             let value = input.value();
-                                            let mut new_fixture = (*fixture_handle).clone();
+                                            let mut new_fixture = (*tournament).clone();
                                             if let Some(ref mut fix) = new_fixture {
                                                 let game = &mut fix.matches[date_idx].games[game_idx];
                                                 game.away = value.parse().unwrap_or(0);
-                                                fixture_handle.set(Some(fix.clone()));
+                                                tournament.set(Some(fix.clone()));
                                             }
                                         })
                                     }
@@ -215,32 +217,47 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
             </div>
         }
     }).collect::<Html>());
-    html! { 
-        <div>
-            { format!("Viewing tournament: {}", props.code) }
-            { // Display the fixture :D
-                if let Some(html) = thtml {
-                    html
-                } else {
-                    html! {}
-                }
-            }
-        </div> 
-    }
-    */
-    
+
+    // web_sys::console::log_1(&format!("{:?}", tournament_html).into());
+
     html!{
         <div>
             {
-                if let Some(t) = &*tournament {
-                    html! { <pre>{ format!("{:?}", t) }</pre> }
+                if (*tournament).is_some() {
+                    tournament_html
                 } else {
-                    html! { "Loading..." }
+                    Some(html! { "Loading .." })
                 }
             }
         </div>
     }
 }
+
+/*
+fn match_input_html() -> Html {
+    html! {
+        <input
+            type="number"
+            min="0"
+            max="100"
+            value={game.away.to_string()}
+            oninput={
+                let fixture_handle = tournament.clone();
+                Callback::from(move |e: InputEvent| {
+                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                    let value = input.value();
+                    let mut new_fixture = (*fixture_handle).clone();
+                    if let Some(ref mut fix) = new_fixture {
+                        let game = &mut fix.matches[date_idx].games[game_idx];
+                        game.away = value.parse().unwrap_or(0);
+                        fixture_handle.set(Some(fix.clone()));
+                    }
+                })
+            }
+        />
+    }
+}
+*/
 
 #[function_component(Dev)]
 fn dev() -> Html {
