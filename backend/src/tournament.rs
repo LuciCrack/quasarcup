@@ -94,7 +94,7 @@ impl Tournament {
             let row = match sqlx::query!(
                 "SELECT id, name FROM tournaments WHERE code = ?",
                 code
-            ).fetch_optional(db).await.expect("no code") {
+            ).fetch_optional(db).await.expect("wrong code") {
                 Some(x) => x,
                 None => {
                     return None;
@@ -159,6 +159,8 @@ impl Tournament {
                 ));
             }
         }
+
+        println!("{:?}", matches);
 
         // get data from data base using code
         // send fixture if it exists back to the front end 
