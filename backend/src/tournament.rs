@@ -61,7 +61,7 @@ pub struct Date {
 
 impl Date {
     fn new(games: Vec<Game>, date_idx: usize) -> Date {
-        Date { games, date_idx }
+    Date { games, date_idx }
     }
 }
 
@@ -79,6 +79,13 @@ impl Tournament {
         Tournament { name, teams, matches }
     }
 
+    pub async fn exists(code: String, db: &SqlitePool) -> bool {
+        sqlx::query!(
+            "SELECT id FROM tournaments WHERE code = ?",
+            code
+        ).fetch_optional(db).await.expect("Failed to fetch id").is_some()
+    }
+
     // TODO:
     // Ok so I get a response alr?!
     // No unwrap error or expect, nothing! GREAT
@@ -94,7 +101,7 @@ impl Tournament {
             let row = match sqlx::query!(
                 "SELECT id, name FROM tournaments WHERE code = ?",
                 code
-            ).fetch_optional(db).await.expect("wrong code") {
+            ).fetch_optional(db).await.expect("no code") {
                 Some(x) => x,
                 None => {
                     return None;
@@ -104,6 +111,7 @@ impl Tournament {
             name = row.name;
             tournament_id = row.id;
         }
+
         let mut teams = vec![];
         {
             let rows = sqlx::query!(
@@ -121,10 +129,12 @@ impl Tournament {
         let mut matches = vec![];
         {
             let rows = sqlx::query!(
-                "SELECT date_idx, game_idx, home_team_id, away_team_id, home_score, away_score FROM games WHERE tournament_id = ?",
+                "SELECT date_idx, game_idx, home_team_id, away_team_id, home_score, away_score 
+                FROM games WHERE tournament_id = ?",
                 tournament_id
             ).fetch_all(db).await.expect("Failed to fetch matches");
 
+            //                              date, games
             let mut games_by_date: HashMap<usize, Vec<Game>> = HashMap::new();
 
             for row in rows.iter() {
@@ -149,7 +159,7 @@ impl Tournament {
                     row.home_score as i32, 
                     row.away_score as i32
                 );
-                games_by_date.entry(row.game_idx as usize).or_default().push(game);
+                games_by_date.entry(row.date_idx as usize).or_default().push(game);
             }
             
             for date_idx in games_by_date.keys() {
@@ -174,7 +184,9 @@ impl Tournament {
 fn create_teams(n: usize) -> Vec<Team> {
     let mut teams = vec![];
     for i in 1..=n {
-        teams.push(Team::new(format!("team{i}")));
+        teams.push(
+            Team::new(format!("team{i}"))
+        );
     }
 
     teams

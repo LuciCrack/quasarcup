@@ -36,6 +36,7 @@ async fn main() {
         // Routes with get() or post() methods, each will call a handler
         .route("/create_tournament", post(create_tournament))
         .route("/reset_database", post(nuke_database))
+        .route("/exists_tournament", post(exists_tournament))
         .route("/get_tournament", post(get_tournament))
         .with_state(db.clone())
         .layer(cors);
@@ -60,7 +61,15 @@ async fn create_tournament(
     code
 }
 
-// Please make this code better :D
+async fn exists_tournament(
+    State(db): State<SqlitePool>, 
+    code: String
+) -> axum::Json<bool> {
+    Json (
+        Tournament::exists(code, &db).await
+    )
+}
+
 async fn get_tournament(
     State(db): State<SqlitePool>,
     code: String,

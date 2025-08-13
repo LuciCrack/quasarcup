@@ -131,6 +131,37 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
     // Send a request to the backend for the tournament info
     let tournament: UseStateHandle<Option<Tournament>> = use_state(|| None);
 
+    // None = not checked yet, Some(true) = exists, Some(false) = not found
+    let exists: UseStateHandle<Option<bool>> = use_state(|| None);
+
+    // Ensure that tournament exists
+    {
+        let code = props.code.clone();
+        let exists = exists.clone();
+
+        use_effect_with(
+            (),
+            move |_| {
+                // Remember to always move clones into async blocks!
+                wasm_bindgen_futures::spawn_local(async move {
+                    let resp = Request::post("http://localhost:2000/exists_tournament")
+                        .header("Content-Type", "application/json")
+                        .body(code).unwrap()
+                        .send().await.expect("Failed to send get request");
+
+                    exists.set(resp.json().await.expect("Failed to get bool"));
+                });
+            }
+        );
+    }
+
+    // FIXME: doesnt show not found when doesnt exist
+    if let Some(exists) = *exists {
+        if !exists {
+            return html! { <div>{ "Tournament not found." }</div> }
+        }
+    };
+
     {
         let code = props.code.clone();
         let tournament = tournament.clone();
@@ -144,7 +175,6 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
                         .header("Content-Type", "application/json")
                         .body(code).unwrap()
                         .send().await.expect("Failed to send get request");
-                    println!("get request sent!");
 
                     tournament.set(resp.json().await.expect("Failed to deserialize"));
                 });
@@ -152,14 +182,12 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
         )
     }
     
-    println!(" {:?} ", *tournament);
-
     // Create the html for the tournament before the actual html! macro
     // TODO:
     // Update scores to the backend
     // Put more tournament info, not only fixture
     let tournament_html = (*tournament).as_ref().map(|fix| fix.matches.iter().enumerate().map(|(date_idx, date)| {
-        web_sys::console::log_1(&format!("Date #{}: {:?}", date_idx, date).into());
+
         html! {
             <div>
                 <h3>{ format!("Date {}", date_idx + 1) }</h3>
@@ -218,8 +246,7 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
         }
     }).collect::<Html>());
 
-    // web_sys::console::log_1(&format!("{:?}", tournament_html).into());
-
+    // FIXME: returns loading when tournament does not exists
     html!{
         <div>
             {
@@ -232,32 +259,6 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
         </div>
     }
 }
-
-/*
-fn match_input_html() -> Html {
-    html! {
-        <input
-            type="number"
-            min="0"
-            max="100"
-            value={game.away.to_string()}
-            oninput={
-                let fixture_handle = tournament.clone();
-                Callback::from(move |e: InputEvent| {
-                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                    let value = input.value();
-                    let mut new_fixture = (*fixture_handle).clone();
-                    if let Some(ref mut fix) = new_fixture {
-                        let game = &mut fix.matches[date_idx].games[game_idx];
-                        game.away = value.parse().unwrap_or(0);
-                        fixture_handle.set(Some(fix.clone()));
-                    }
-                })
-            }
-        />
-    }
-}
-*/
 
 #[function_component(Dev)]
 fn dev() -> Html {
