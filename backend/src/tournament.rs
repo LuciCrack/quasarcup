@@ -1,6 +1,6 @@
 use serde::Serialize;
 use sqlx::SqlitePool;
-use std::{vec, collections::HashMap};
+use std::{collections::BTreeMap, vec};
 
 #[derive(Serialize, Debug, Clone)] // For handling JSON
 pub struct Team {
@@ -86,14 +86,10 @@ impl Tournament {
         ).fetch_optional(db).await.expect("Failed to fetch id").is_some()
     }
 
-    // TODO:
-    // Ok so I get a response alr?!
-    // No unwrap error or expect, nothing! GREAT
-    // but the returned tournament is not exaclty what it should be 
-    // more specifically in matches, its weird
-    // still have not figured out the error, or where it deserializes wrong
-    // but there's def something wrong with the order of the dates 
-    // ik my fixtures they aint like that!
+    // FIXME:
+    // doesn't panic! thats good
+    // but for some use reason I get different
+    // date numbers every time I try to get the tournament
     pub async fn deserialize_from_db(code: String, db: &SqlitePool) -> Option<Tournament> {
         let name;
         let tournament_id;
@@ -135,7 +131,7 @@ impl Tournament {
             ).fetch_all(db).await.expect("Failed to fetch matches");
 
             //                              date, games
-            let mut games_by_date: HashMap<usize, Vec<Game>> = HashMap::new();
+            let mut games_by_date: BTreeMap<usize, Vec<Game>> = BTreeMap::new();
 
             for row in rows.iter() {
                 // Get playing teams from id's 
