@@ -170,13 +170,6 @@ impl Tournament {
             }
         }
 
-        println!("{:?}", matches);
-
-        // get data from data base using code
-        // send fixture if it exists back to the front end 
-        // enought to render
-        // send None if code is not valid
-
         Some(Tournament { name, teams, matches })
     }
 }

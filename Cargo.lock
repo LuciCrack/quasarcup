@@ -459,6 +459,7 @@ dependencies = [
  "gloo-net 0.6.0",
  "serde",
  "serde_json",
+ "tokio",
  "wasm-bindgen-futures",
  "web-sys",
  "yew",

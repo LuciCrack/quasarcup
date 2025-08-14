@@ -76,9 +76,6 @@ fn tournament_create() -> Html {
 
             let navigator = navigator.clone();
 
-            // Copilot says its async because it runs inside the JS event loop in the browser
-            // Imma pretend I understand that
-
             wasm_bindgen_futures::spawn_local(async move {
                 let code = Request::post("http://localhost:2000/create_tournament")
                     .header("Content-Type", "application/json")
@@ -90,6 +87,8 @@ fn tournament_create() -> Html {
                 navigator.push(&Route::TournamentView { code });
             });
         })
+
+
     };
 
     html! {
@@ -131,7 +130,7 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
     // Send a request to the backend for the tournament info
     let tournament: UseStateHandle<Option<Tournament>> = use_state(|| None);
 
-    // None = not checked yet, Some(true) = exists, Some(false) = not found
+    // None = loading, Some(true) = exists, Some(false) = not found
     let exists: UseStateHandle<Option<bool>> = use_state(|| None);
 
     // Ensure that tournament exists
@@ -154,13 +153,8 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
             }
         );
     }
-
-    // FIXME: doesnt show not found when doesnt exist
-    if let Some(exists) = *exists {
-        if !exists {
-            return html! { <div>{ "Tournament not found." }</div> }
-        }
-    };
+    
+    web_sys::console::log_1(&format!("Exists? {:?}", *exists).into());
 
     {
         let code = props.code.clone();
@@ -181,6 +175,8 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
             }
         )
     }
+
+    web_sys::console::log_1(&format!("{:?}", *tournament).into());
     
     // Create the html for the tournament before the actual html! macro
     // TODO:
@@ -246,17 +242,21 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
         }
     }).collect::<Html>());
 
-    // FIXME: returns loading when tournament does not exists
-    html!{
-        <div>
-            {
-                if (*tournament).is_some() {
-                    tournament_html
-                } else {
-                    Some(html! { "Loading .." })
-                }
-            }
-        </div>
+    // TODO: Make an enum that does this logic, for better understanding
+    // NotLoaded
+    // NotFound
+    // Found(Tournament) 
+    // maybe await for the tournament_html to finish or something
+    // im not really that familiar with async and web dev yet 
+    // but this works fine so it's cool
+    match *exists {
+        None => html!{ "Loading.. Please Wait" },
+        Some(false) => html! { "ERROR 404: Tournament Not Found" },
+        Some(true) => if let Some(t) = tournament_html {
+            t
+        } else {
+            html!{ "Loading.. Please Wait" }
+        }
     }
 }
 
