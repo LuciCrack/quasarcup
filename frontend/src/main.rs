@@ -20,6 +20,8 @@ pub enum Route {
     #[not_found]
     #[at("/404")]
     NotFound,
+    #[at("/search")]
+    Search,
 }
 
 #[function_component]
@@ -38,6 +40,7 @@ fn switch(route: Route) -> Html {
         Route::TournamentView { code } => html! { <TournamentView code={ code } /> },
         Route::Dev => html! { <Dev /> },
         Route::NotFound => html! { <div>{ "404 Not Found" }</div> },
+        Route::Search => html! { <Search /> },
     }
 }
 
@@ -116,7 +119,7 @@ fn tournament_create() -> Html {
                         team_number.set(input.value().parse().unwrap_or(0));
                     })}
                 />
-                <button type="submit">{ "Create Fixture" }</button>
+                <button type="submit">{ "Create Tournament" }</button>
             </form>
         </div>
     }}
@@ -125,6 +128,66 @@ fn tournament_create() -> Html {
 struct TournamentViewProps {
     pub code: String,
 }
+
+#[function_component(Search)]
+fn search() -> Html {
+    let code: UseStateHandle<String> = use_state(|| "".to_string());
+    let exists: UseStateHandle<Option<bool>> = use_state(|| None);
+
+    let navigator = use_navigator().unwrap();
+
+    let onsubmit = {
+        let code = code.clone();
+        let exists = exists.clone();
+
+        Callback::from(move |e: yew::SubmitEvent|{
+            e.prevent_default();
+
+            let exists = exists.clone();
+            let code = code.clone();
+
+            wasm_bindgen_futures::spawn_local(async move {
+                let resp = Request::post("http://localhost:2000/exists_tournament")
+                    .header("Content-Type", "application/json")
+                    .body(&*code)
+                    .unwrap().send().await
+                    .expect("Failed to send post request");
+
+                exists.set(resp.json().await.unwrap());
+            });
+        })
+    };
+
+    {
+        let exists = exists.clone();
+        let code = code.clone();
+
+        match *exists {
+            None => (),
+            Some(true) => {
+                navigator.push(&Route::TournamentView { code: code.to_string() });
+                return html! { "Re-Routing" }
+            },
+            Some(false) => return html! { "Tournament not found, please try again" },
+        }
+    }
+
+    html! {
+        <div>
+            <p2> { "Search for a Tournament" } </p2>
+            <form {onsubmit}>
+                <input type="text" placeholder="Tournament Code"
+                    oninput={Callback::from(move |e: InputEvent| {
+                        let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                        code.set(input.value());
+                    })}
+                />
+                <button type="submit"> { "Search Tournament" } </button>
+            </form>
+        </div>
+    }
+}
+
 #[function_component(TournamentView)]
 fn tournament_view(props: &TournamentViewProps) -> Html {
     // Send a request to the backend for the tournament info
@@ -252,10 +315,12 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
     match *exists {
         None => html!{ "Loading.. Please Wait" },
         Some(false) => html! { "ERROR 404: Tournament Not Found" },
-        Some(true) => if let Some(t) = tournament_html {
-            t
-        } else {
-            html!{ "Loading.. Please Wait" }
+        Some(true) => { 
+            if let Some(t) = tournament_html {
+                t
+            } else {
+                html!{ "Loading.. Please Wait" }
+            }
         }
     }
 }
