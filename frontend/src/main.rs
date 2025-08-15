@@ -44,13 +44,63 @@ fn switch(route: Route) -> Html {
     }
 }
 
+#[derive(Properties, PartialEq)]
+pub struct LayoutProps {
+    pub title: String,
+    #[prop_or_default]
+    pub children: Children,
+}
+
+#[function_component(Layout)]
+fn layout(props: &LayoutProps) -> Html {
+    // Set the page title
+    {
+        let title = props.title.clone();
+        use_effect_with((), move |_| {
+            if let Some(doc) = window().and_then(|w| w.document()) {
+                doc.set_title(&format!("Quasar Cup - {}", title));
+            }
+            || ()
+        });
+    }
+
+    html! {
+        <>
+            <header>
+                <h1> { "QUASAR CUP" } </h1>
+                <nav>
+                    <a href="/">{"Home"}</a>
+                    {" | "}
+                    <a href="/tournament">{"Create Tournament"}</a>
+                    {" | "}
+                    <a href="/search">{"Search"}</a>
+                    {" | "}
+                    <a href="https://github.com/LuciCrack/quasarcup">{ "GitHub" }</a>
+                </nav>
+            </header>
+            <main>
+                { for props.children.iter() }
+            </main>
+            <footer>
+                { " Quasar Cup @ 2025 " }
+            </footer>
+        </>
+    }
+}
+
 // TODO: refractor modules
 // move function components for each route
 // to a different module or something
 
 #[function_component(Home)]
 fn home() -> Html {
-    html! { <div>{ "Welcome! Choose create or open tournament." }</div> }
+    html! {
+        <Layout title="Home">
+            <div>
+                <h2> { "Welcome! Choose create or open tournament." } </h2>
+            </div>
+        </Layout>
+    }
 }
 
 #[function_component(TournamentCreate)]
