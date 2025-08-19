@@ -1,16 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Quasar Cup</title>
-<link rel="modulepreload" href="/frontend-5078d7b04e872b6d.js" crossorigin="anonymous" integrity="sha384-ahfYfdAtwKHmsCMCYnrGp+rrY240UY0lug1uPmukWbwsdDiSVFvqiRRWfECziFY8"><link rel="preload" href="/frontend-5078d7b04e872b6d_bg.wasm" crossorigin="anonymous" integrity="sha384-4upyA5npA6vbuLTd+ZKlNgVdpbXMFxiFczgG+kxm+ttFBC3MVuVnAbULtUXL1IqU" as="fetch" type="application/wasm"></head>
-<body>
+  <head>
+      <meta charset="UTF-8">
+      <title>Quasar Cup</title>
+      
+      <link rel="stylesheet" href="/styles.css" />
+  <link rel="modulepreload" href="/frontend-3c2a8850affb0ecf.js" crossorigin="anonymous" integrity="sha384-ahfYfdAtwKHmsCMCYnrGp+rrY240UY0lug1uPmukWbwsdDiSVFvqiRRWfECziFY8"><link rel="preload" href="/frontend-3c2a8850affb0ecf_bg.wasm" crossorigin="anonymous" integrity="sha384-VGmErBVc+CerzC942nIB53itLtS0oPtBTN0jLBdl/XEFhbtWBQTdyaghDt3EbpDo" as="fetch" type="application/wasm"></head>
+  <body>
     <div id="root"></div>
-    <script type="module">import init from './frontend.js'; init();</script>
-
+      <script type="module">import init from './frontend.js'; init();</script>
+  
 <script type="module">
-import init, * as bindings from '/frontend-5078d7b04e872b6d.js';
-const wasm = await init({ module_or_path: '/frontend-5078d7b04e872b6d_bg.wasm' });
+import init, * as bindings from '/frontend-3c2a8850affb0ecf.js';
+const wasm = await init({ module_or_path: '/frontend-3c2a8850affb0ecf_bg.wasm' });
 
 
 window.wasmBindings = bindings;
