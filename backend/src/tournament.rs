@@ -2,6 +2,11 @@ use serde::Serialize;
 use sqlx::SqlitePool;
 use std::{collections::BTreeMap, vec};
 
+pub enum TeamRole {
+    Home,
+    Away,
+}
+
 #[derive(Serialize, Debug, Clone)] // For handling JSON
 pub struct Team {
     pub name: String,
@@ -51,6 +56,17 @@ impl Game {
     }
     // TODO:
     // score function
+    fn score(&mut self, team_role: TeamRole) {
+        match team_role {
+            TeamRole::Home => self.home += 1,
+            TeamRole::Away => self.away += 1,
+        }
+    }
+
+    fn update_match(&mut self, home: i32, away: i32) {
+        self.home = home;
+        self.away = away;
+    }
 }
 
 #[derive(Serialize, Debug)] // For handling JSON
@@ -86,10 +102,6 @@ impl Tournament {
         ).fetch_optional(db).await.expect("Failed to fetch id").is_some()
     }
 
-    // FIXME:
-    // doesn't panic! thats good
-    // but for some use reason I get different
-    // date numbers every time I try to get the tournament
     pub async fn deserialize_from_db(code: String, db: &SqlitePool) -> Option<Tournament> {
         let name;
         let tournament_id;

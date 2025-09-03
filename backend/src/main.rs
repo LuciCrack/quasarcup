@@ -38,6 +38,7 @@ async fn main() {
         .route("/reset_database", post(nuke_database))
         .route("/exists_tournament", post(exists_tournament))
         .route("/get_tournament", post(get_tournament))
+        .route("/update_match", post(update_match))
         .with_state(db.clone())
         .layer(cors);
 
@@ -79,6 +80,12 @@ async fn get_tournament(
     Json(
         tournament
     )
+}
+
+async fn update_match(
+    Json(input): Json<UpdateMatch>,
+) {
+
 }
 
 async fn save_fixture_to_database(
@@ -186,4 +193,13 @@ async fn generate_code(db: &SqlitePool) -> String {
 pub struct CreateTournamentInput {
     pub tournament_name: String,
     pub team_number: usize,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateMatch {
+    code: String,
+    game_idx: i32,
+    date_idx: i32,
+    home: i32,
+    away: i32,
 }
