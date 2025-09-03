@@ -105,33 +105,35 @@ fn tournament_create() -> Html {
     };
 
     html! {
-        <div>
-            <form {onsubmit}>
-                // html elements for user input
-                <input type="text" placeholder="Tournament Name"
-                    // set value of the input box to the one stored in Yet state variable,
-                    // derefencing UseStateHandle to get a String and cloning for ownership
-                    value={(*tournament).clone()}
-                    // event handler, closure takes ownership of tournament
-                    oninput={Callback::from(move |e: InputEvent| {
-                        // e is an event object from browser and bla bla bla (did not understand)
-                        let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                        // .value() reads the input box and .set() updates the Yew state variable,
-                        // triggering a re-render if it changes
-                        tournament.set(input.value());
-                    })}
-                />
-                <input type="number" min=2 max=999 placeholder="Number of Teams"
-                    // same as the tournament, but intended for an i32 
-                    value={(*team_number).clone().to_string()}
-                    oninput={Callback::from(move |e: InputEvent| {
-                        let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                        team_number.set(input.value().parse().unwrap_or(0));
-                    })}
-                />
-                <button type="submit">{ "Create Tournament" }</button>
-            </form>
-        </div>
+        <Layout title="Create Tournament">
+            <div>
+                <form {onsubmit}>
+                    // html elements for user input
+                    <input type="text" placeholder="Tournament Name"
+                        // set value of the input box to the one stored in Yet state variable,
+                        // derefencing UseStateHandle to get a String and cloning for ownership
+                        value={(*tournament).clone()}
+                        // event handler, closure takes ownership of tournament
+                        oninput={Callback::from(move |e: InputEvent| {
+                            // e is an event object from browser and bla bla bla (did not understand)
+                            let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                            // .value() reads the input box and .set() updates the Yew state variable,
+                            // triggering a re-render if it changes
+                            tournament.set(input.value());
+                        })}
+                    />
+                    <input type="number" min=2 max=999 placeholder="Number of Teams"
+                        // same as the tournament, but intended for an i32 
+                        value={(*team_number).clone().to_string()}
+                        oninput={Callback::from(move |e: InputEvent| {
+                            let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                            team_number.set(input.value().parse().unwrap_or(0));
+                        })}
+                    />
+                    <button type="submit">{ "Create Tournament" }</button>
+                </form>
+            </div>        
+        </Layout>
     }}
 
 #[derive(Properties, PartialEq, Debug, Clone, Eq)]
@@ -183,18 +185,20 @@ fn search() -> Html {
     }
 
     html! {
-        <div>
-            <p2> { "Search for a Tournament" } </p2>
-            <form {onsubmit}>
-                <input type="text" placeholder="Tournament Code"
-                    oninput={Callback::from(move |e: InputEvent| {
-                        let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                        code.set(input.value());
-                    })}
-                />
-                <button type="submit"> { "Search Tournament" } </button>
-            </form>
-        </div>
+        <Layout title="Search">
+            <div>
+                <p2> { "Search for a Tournament" } </p2>
+                <form {onsubmit}>
+                    <input type="text" placeholder="Tournament Code"
+                        oninput={Callback::from(move |e: InputEvent| {
+                            let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                            code.set(input.value());
+                        })}
+                    />
+                    <button type="submit"> { "Search Tournament" } </button>
+                </form>
+            </div>        
+        </Layout>
     }
 }
 
@@ -227,8 +231,6 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
         );
     }
     
-    web_sys::console::log_1(&format!("Exists? {:?}", *exists).into());
-
     {
         let code = props.code.clone();
         let tournament = tournament.clone();
@@ -249,14 +251,11 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
         )
     }
 
-    web_sys::console::log_1(&format!("{:?}", *tournament).into());
-    
     // Create the html for the tournament before the actual html! macro
     // TODO:
-    // Update scores to the backend
+    // Update scores to the backend WIP
     // Put more tournament info, not only fixture
     let tournament_html = (*tournament).as_ref().map(|fix| fix.matches.iter().enumerate().map(|(date_idx, date)| {
-
         html! {
             <div>
                 <h3>{ format!("Date {}", date_idx + 1) }</h3>
@@ -270,19 +269,14 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
                                     min="0"
                                     max="100"
                                     value={ game.home.to_string() }
-                                    oninput={ {
-                                        let tournament = tournament.clone();
-                                        Callback::from(move |e: InputEvent| {
-                                            let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                                            let value = input.value();
-                                            let mut new_fixture = (*tournament).clone();
-                                            if let Some(ref mut fix) = new_fixture {
-                                                let game = &mut fix.matches[date_idx].games[game_idx];
-                                                game.home = value.parse().unwrap_or(0);
-                                                tournament.set(Some(fix.clone()));
-                                            }
-                                        })
-                                    } }
+                                    oninput={ 
+                                        let code = props.code.clone();
+                                        score_input(
+                                            tournament.clone(), 
+                                            date_idx, game_idx, TeamRole::Home, 
+                                            code,
+                                        ) 
+                                    }
                                 />
                             </td>
                             <td>{ "vs" }</td>
@@ -292,18 +286,13 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
                                     min="0"
                                     max="100"
                                     value={game.away.to_string()}
-                                    oninput={
-                                        let tournament = tournament.clone();
-                                        Callback::from(move |e: InputEvent| {
-                                            let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                                            let value = input.value();
-                                            let mut new_fixture = (*tournament).clone();
-                                            if let Some(ref mut fix) = new_fixture {
-                                                let game = &mut fix.matches[date_idx].games[game_idx];
-                                                game.away = value.parse().unwrap_or(0);
-                                                tournament.set(Some(fix.clone()));
-                                            }
-                                        })
+                                    oninput={ 
+                                        let code = props.code.clone();
+                                        score_input(
+                                            tournament.clone(), 
+                                            date_idx, game_idx, TeamRole::Away,
+                                            code,
+                                        ) 
                                     }
                                 />
                             </td>
@@ -327,11 +316,82 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
         Some(false) => html! { "ERROR 404: Tournament Not Found" },
         Some(true) => { 
             if let Some(t) = tournament_html {
-                t
+                html! {
+                    <Layout title="Tournament">
+                        { t }
+                    </Layout>
+                }
             } else {
-                html!{ "Loading.. Please Wait" }
+                html!{ 
+                    <Layout title="Tournament">
+                        { "Loading.. Please Wait" }
+                    </Layout>
+                }
             }
         }
+    }
+}
+
+fn score_input(
+    tournament: UseStateHandle<Option<Tournament>>,
+    date_idx: usize,
+    game_idx: usize,
+    team_role: TeamRole,
+    code: String,
+) -> Callback<InputEvent> {
+    Callback::from(move |e: InputEvent| { // How does e get here idk but it works
+        let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+        let score: i32 = parse_score_input(input);
+        
+        let code = code.clone();
+
+        let mut new_fixture = (*tournament).clone();    // mut keyword here is important
+        if let Some(ref mut fix) = new_fixture {        // because we mutate next
+            // This is in a bit of a weird order but its because of
+            // mutable and inmutable references stuff xd
+            // ik its bad but it works and it can be made better Later
+
+            // Update frontend
+            let game = &mut fix.matches[date_idx].games[game_idx];
+            match team_role {
+                TeamRole::Home => game.home = score,
+                TeamRole::Away => game.away = score,
+            }
+
+            // Later for backend
+            let new_match = UpdateMatch {
+                code,
+                game_idx: game_idx as i32,
+                date_idx: date_idx as i32,
+                home: game.home,
+                away: game.away,
+            };
+
+            // Update frontend
+            tournament.set(Some(fix.clone()));
+
+            // Update backend 
+            use_effect_with(
+                (),
+                move |_| {
+                    wasm_bindgen_futures::spawn_local(async move {
+                        Request::post("http://localhost:2000/update_match")
+                            .header("Content-Type", "application/json")
+                            .body(serde_json::to_string(&new_match).unwrap())
+                            .unwrap().send().await.expect("Failed to send get request");
+                    });
+                }
+            );
+        }
+    })
+}
+
+fn parse_score_input(score_input: web_sys::HtmlInputElement) -> i32 {
+    let score: i32 = score_input.value().parse().unwrap_or(0);
+    if (0..=100).contains(&score) { // Check that score is in range
+        score
+    } else {
+        0
     }
 }
 
@@ -399,6 +459,20 @@ fn main() {
 pub struct FixtureMakerInput {
     pub tournament_name: String,
     pub team_number: usize,
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct UpdateMatch {
+    code: String,
+    game_idx: i32,
+    date_idx: i32,
+    home: i32,
+    away: i32,
+}
+
+pub enum TeamRole {
+    Home,
+    Away,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
