@@ -57,7 +57,7 @@ async fn create_tournament(
     let code = generate_code(&db).await;
 
     // TODO: Add match result for error handling
-    let _result = save_fixture_to_database(&db, &tournament, &code).await;
+    let _result = Tournament::save_to_database(&db, &tournament, &code).await;
 
     code
 }
@@ -83,68 +83,12 @@ async fn get_tournament(
 }
 
 async fn update_match(
+    State(db): State<SqlitePool>,
     Json(input): Json<UpdateMatch>,
-) {
+) -> axum::Json<bool> {
+    let id = Tournament::get_id(input.code, &db).await.unwrap();
 
-}
-
-async fn save_fixture_to_database(
-    db: &SqlitePool,
-    tournament: &Tournament,
-    code: &String,
-) -> Result<i64, sqlx::Error> {
-    // First create a tournament, returning its id for later use.
-    let tournament_id = sqlx::query!(
-        "INSERT INTO tournaments (name, code) VALUES (?, ?) RETURNING id",
-        tournament.name,
-        code
-    )
-    .fetch_one(db)
-    .await?
-    .id;
-
-    // Create teams, hashing name and id for later use
-    let mut team_id_map = HashMap::new();
-    for team in tournament.teams.iter() {
-        if team.name == "FREE" {
-            continue;
-        } // Don't insert "FREE" team
-
-        let t = sqlx::query!(
-            "INSERT INTO teams (tournament_id, name) VALUES (?, ?) RETURNING id",
-            tournament_id,
-            team.name
-        )
-        .fetch_one(db)
-        .await?;
-
-        team_id_map.insert(team.name.clone(), t.id); // Insert team to HashMap
-    }
-
-    // Finally, insert every game from every date into database
-    for date in tournament.matches.iter() {
-        for game in date.games.iter() {
-            // Dont create games for FREE dates
-            if game.home_team.name == "FREE" || game.away_team.name == "FREE" {
-                continue;
-            }
-
-            // Ensure that team exists (it should always)
-            if let (Some(&home_team_id), Some(&away_team_id)) = (
-                team_id_map.get(&game.home_team.name),
-                team_id_map.get(&game.away_team.name),
-            ) {
-                // Insert game
-                sqlx::query!(
-                    "INSERT INTO games (tournament_id, date_idx, game_idx, home_team_id, away_team_id) 
-                    values (?, ?, ?, ?, ?)", 
-                    tournament_id, game.date_idx, game.game_idx, home_team_id, away_team_id
-                ).execute(db).await?;
-            }
-        }
-    }
-    // Return Ok if all goes well, other wise the '?' operator will return a sqlx::Error
-    Ok(tournament_id)
+    Json ( true )
 }
 
 async fn nuke_database(State(db): State<SqlitePool>, input: String) -> String {

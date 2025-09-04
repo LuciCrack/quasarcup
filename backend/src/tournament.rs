@@ -1,6 +1,6 @@
 use serde::Serialize;
 use sqlx::SqlitePool;
-use std::{collections::BTreeMap, vec};
+use std::{collections::{HashMap, BTreeMap}, vec};
 
 pub enum TeamRole {
     Home,
@@ -28,7 +28,7 @@ pub struct Game {
     // Teams
     pub home_team: Team,
     pub away_team: Team,
-    // Score
+    // Scores
     pub home: i32,
     pub away: i32,
 }
@@ -67,25 +67,52 @@ impl Game {
         self.home = home;
         self.away = away;
     }
-}
 
-#[derive(Serialize, Debug)] // For handling JSON
-pub struct Date {
-    pub games: Vec<Game>,
-    pub date_idx: usize,
-}
+    async fn get_matches(tournament_id: i64, db: &SqlitePool) -> BTreeMap<usize, Vec<Game>> {
+        let rows = sqlx::query!(
+            "SELECT date_idx, game_idx, home_team_id, away_team_id, home_score, away_score 
+            FROM games WHERE tournament_id = ?",
+            tournament_id
+        ).fetch_all(db).await.expect("Failed to fetch matches");
 
-impl Date {
-    fn new(games: Vec<Game>, date_idx: usize) -> Date {
-    Date { games, date_idx }
+        //                              date, games
+        let mut games_by_date: BTreeMap<usize, Vec<Game>> = BTreeMap::new();
+
+        for row in rows.iter() {
+            // Get playing teams from id's 
+            let home_name = sqlx::query!(
+                "SELECT name FROM teams WHERE id = ?",
+                row.home_team_id
+            ).fetch_one(db).await.expect("Failed to fetch home team").name;
+            let home_team = Team::new(home_name);
+            let away_name = sqlx::query!(
+                "SELECT name FROM teams WHERE id = ?",
+                row.away_team_id
+            ).fetch_one(db).await.expect("Failed to fetch home team").name;
+            let away_team = Team::new(away_name);
+
+            // Create new game 
+            let game = Game::with_score(
+                home_team, 
+                away_team, 
+                row.game_idx as i32, 
+                row.date_idx as i32, 
+                row.home_score as i32, 
+                row.away_score as i32
+            );
+            games_by_date.entry(row.date_idx as usize).or_default().push(game);
+        }
+
+        games_by_date
     }
+
 }
 
 #[derive(Serialize, Debug)]
 pub struct Tournament {
     pub name: String,
     pub teams: Vec<Team>,
-    pub matches: Vec<Date>
+    pub matches: BTreeMap<usize, Vec<Game>>
 }
 
 impl Tournament {
@@ -102,7 +129,17 @@ impl Tournament {
         ).fetch_optional(db).await.expect("Failed to fetch id").is_some()
     }
 
-    pub async fn deserialize_from_db(code: String, db: &SqlitePool) -> Option<Tournament> {
+    pub async fn get_id(code: String, db: &SqlitePool) -> Option<i64> {
+        match sqlx::query!(
+            "SELECT id FROM tournaments WHERE code = ?",
+            code
+        ).fetch_optional(db).await.expect("no code") {
+            Some(x) => x.id,
+            _ => None,
+        }
+    }
+
+    pub async fn get_name_and_id(code: String, db: &SqlitePool) -> Option<(String, i64)> {
         let name;
         let tournament_id;
         {
@@ -115,10 +152,14 @@ impl Tournament {
                     return None;
                 }
             };
-
             name = row.name;
-            tournament_id = row.id;
+            tournament_id = row.id.unwrap();
         }
+        Some((name, tournament_id))
+    }
+
+    pub async fn deserialize_from_db(code: String, db: &SqlitePool) -> Option<Tournament> {
+        let (name, tournament_id) = Tournament::get_name_and_id(code, db).await.unwrap();
 
         let mut teams = vec![];
         {
@@ -134,53 +175,72 @@ impl Tournament {
             }
         }
 
-        let mut matches = vec![];
-        {
-            let rows = sqlx::query!(
-                "SELECT date_idx, game_idx, home_team_id, away_team_id, home_score, away_score 
-                FROM games WHERE tournament_id = ?",
-                tournament_id
-            ).fetch_all(db).await.expect("Failed to fetch matches");
-
-            //                              date, games
-            let mut games_by_date: BTreeMap<usize, Vec<Game>> = BTreeMap::new();
-
-            for row in rows.iter() {
-                // Get playing teams from id's 
-                let home_name = sqlx::query!(
-                    "SELECT name FROM teams WHERE id = ?",
-                    row.home_team_id
-                ).fetch_one(db).await.expect("Failed to fetch home team").name;
-                let home_team = Team::new(home_name);
-                let away_name = sqlx::query!(
-                    "SELECT name FROM teams WHERE id = ?",
-                    row.away_team_id
-                ).fetch_one(db).await.expect("Failed to fetch home team").name;
-                let away_team = Team::new(away_name);
-
-                // Create new game 
-                let game = Game::with_score(
-                    home_team, 
-                    away_team, 
-                    row.game_idx as i32, 
-                    row.date_idx as i32, 
-                    row.home_score as i32, 
-                    row.away_score as i32
-                );
-                games_by_date.entry(row.date_idx as usize).or_default().push(game);
-            }
+        let matches = Game::get_matches(tournament_id, db).await;
             
-            for date_idx in games_by_date.keys() {
-                matches.push(Date::new(
-                    games_by_date[date_idx].clone(),
-                    *date_idx
-                ));
+        Some(Tournament { name, teams, matches })
+    }
+
+    pub async fn save_to_database(
+        db: &SqlitePool,
+        tournament: &Tournament,
+        code: &String,
+    ) -> Result<i64, sqlx::Error> {
+        // First create a tournament, returning its id for later use.
+        let tournament_id = sqlx::query!(
+            "INSERT INTO tournaments (name, code) VALUES (?, ?) RETURNING id",
+            tournament.name,
+            code
+        )
+        .fetch_one(db)
+        .await?
+        .id;
+
+        // Create teams, hashing name and id for later use
+        let mut team_id_map = HashMap::new();
+        for team in tournament.teams.iter() {
+            if team.name == "FREE" {
+                continue;
+            } // Don't insert "FREE" team
+
+            let t = sqlx::query!(
+                "INSERT INTO teams (tournament_id, name) VALUES (?, ?) RETURNING id",
+                tournament_id,
+                team.name
+            )
+            .fetch_one(db)
+            .await?;
+
+            team_id_map.insert(team.name.clone(), t.id); // Insert team to HashMap
+        }
+
+        // Finally, insert every game from every date into database
+        for games in tournament.matches.values() {
+            for game in games.iter() {
+                // Dont create games for FREE dates
+                if game.home_team.name == "FREE" || game.away_team.name == "FREE" {
+                    continue;
+                }
+
+                // Ensure that team exists (it should always)
+                if let (Some(&home_team_id), Some(&away_team_id)) = (
+                    team_id_map.get(&game.home_team.name),
+                    team_id_map.get(&game.away_team.name),
+                ) {
+                    // Insert game
+                    sqlx::query!(
+                        "INSERT INTO games (tournament_id, date_idx, game_idx, home_team_id, away_team_id) 
+                        values (?, ?, ?, ?, ?)", 
+                        tournament_id, game.date_idx, game.game_idx, home_team_id, away_team_id
+                    ).execute(db).await?;
+                }
             }
         }
 
-        Some(Tournament { name, teams, matches })
+        // Return Ok if all goes well, other wise the '?' operator will return a sqlx::Error
+        Ok(tournament_id)
     }
 }
+
 
 fn create_teams(n: usize) -> Vec<Team> {
     let mut teams = vec![];
@@ -193,7 +253,7 @@ fn create_teams(n: usize) -> Vec<Team> {
     teams
 }
 
-pub fn create_matches(mut teams: Vec<Team>) -> Vec<Date> {
+pub fn create_matches(mut teams: Vec<Team>) -> BTreeMap<usize, Vec<Game>> {
     // Create Vector of Dates (fixture)
     // One way, Free For All using Round-Robin algorithm
     // For more information on Round-Robin for sports visit 
@@ -209,50 +269,35 @@ pub fn create_matches(mut teams: Vec<Team>) -> Vec<Date> {
     // How many dates there will be
     let date_num = len - 1;
 
-    create_fixture(date_num, teams.clone(), len)
-}
-
-fn create_fixture(date_num: usize, mut teams: Vec<Team>, len: usize) -> Vec<Date> {
-    // Use Round-Robin Circle algorithm for creating the fixture
-    let mut dates = vec![];
+    let mut matches: BTreeMap<usize, Vec<Game>> = BTreeMap::new();
 
     for date_idx in 0..date_num {
-        let date_games = create_date_games(teams.clone(), date_idx, len);
-        dates.push(Date::new(date_games, date_idx));
-
-        // Then cicle through
-        let last = teams.pop().unwrap(); // Move the last team to the second position
-        teams.insert(1, last); // Pos 0 is fixed
-    }
-
-    dates
-}
-
-fn create_date_games(teams: Vec<Team>, date_idx: usize, len: usize) -> Vec<Game> {
-    // For each date, arrange games by pairing first and last
-    // circle algorithm
-    let mut date_games = vec![];
-    for game_idx in 0..len / 2 {
-        date_games.push({
-            // Switch team1 to play both as home and away
+        for game_idx in 0..len/2 {
+            let game;
             if is_pair(date_idx) {
-                Game::new(
+                game = Game::new(
                     teams[game_idx].clone(),
                     teams[len - game_idx - 1].clone(),
                     game_idx.try_into().unwrap(),
                     date_idx.try_into().unwrap(),
                 )
             } else {
-                Game::new(
+                game = Game::new(
                     teams[len - game_idx - 1].clone(),
                     teams[game_idx].clone(),
                     game_idx.try_into().unwrap(),
                     date_idx.try_into().unwrap(),
                 )
             }
-        });
+            matches.entry(date_idx).or_default().push(game);
+        }
+
+        // Then cicle through
+        let last = teams.pop().unwrap(); // Move the last team to the second position
+        teams.insert(1, last); // Pos 0 is fixed
     }
-    date_games
+
+    matches
 }
 
 fn is_pair(number: usize) -> bool {
