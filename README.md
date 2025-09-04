@@ -3,9 +3,19 @@
 
 ---
 
-_**Quasar Cup** is a web application to help anyone easily organize soccer tournaments. It handles team creation, match scheduling, results, and stats, so organizers can focus on the fun part — the games!_
+_**Quasar Cup** is a web application to help anyone easily organize soccer tournaments. It handles team creation, match scheduling, results, and statistics, so organizers can focus on the fun part — the games!_
 
 ---
+
+## Features
+
+* Matches scheduling
+* Games results and statistics.
+* Tournament leaderboard
+* Team statistics tracker
+* Player statistics tracker
+* All information saved to the cloud
+* Share tournament display info and administrators permissions
 
 
 ## Technical Stuff
