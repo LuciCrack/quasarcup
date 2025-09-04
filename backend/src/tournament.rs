@@ -76,7 +76,7 @@ impl Game {
         ).fetch_all(db).await.expect("Failed to fetch matches");
 
         //                              date, games
-        let mut games_by_date: BTreeMap<usize, Vec<Game>> = BTreeMap::new();
+        let mut matches: BTreeMap<usize, Vec<Game>> = BTreeMap::new();
 
         for row in rows.iter() {
             // Get playing teams from id's 
@@ -100,10 +100,9 @@ impl Game {
                 row.home_score as i32, 
                 row.away_score as i32
             );
-            games_by_date.entry(row.date_idx as usize).or_default().push(game);
+            matches.entry(row.date_idx as usize).or_default().push(game);
         }
-
-        games_by_date
+        matches
     }
 
 }
