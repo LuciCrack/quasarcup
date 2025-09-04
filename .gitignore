@@ -1,5 +1,6 @@
 /target
 /frontend/dist/*
+/frontend/dist/index.html
 /backend/quasarcup.db
 *.db
 .env
