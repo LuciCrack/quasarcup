@@ -22,7 +22,8 @@ _**Quasar Cup** is a web application to help anyone easily organize soccer tourn
 
 You can check the website demo running on  https://(TODO)
 
-(TODO) Image or GIF showing demo
+(TODO) Image or GIF of Demo
+(TODO) Youtube Video Showcase
 
 ## Contribuiting
 
@@ -35,6 +36,6 @@ Here we have our Features list and tracker of what is currently being implemente
 Run both frontend and backend servers by following these instructions.
 
 * You must have Rust and Cargo installed
-* Install trunk with `cargo install trunk` and x with ``
+* Install trunk with `cargo install trunk` and just? with ``
 * Use `git clone` to get this repo
-* Run both backend and frontend servers using `just start-dev'
+* Run both backend and frontend servers using `just start-dev`
