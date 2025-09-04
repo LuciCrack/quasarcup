@@ -3,6 +3,7 @@ use yew::prelude::*;
 use yew_router::prelude::*;
 use gloo_net::http::Request;
 use serde::{Serialize, Deserialize};
+use std::collections::BTreeMap;
 
 use crate::pages::layout::Layout;
 
@@ -347,18 +348,14 @@ fn score_input(
 
         let mut new_fixture = (*tournament).clone();    // mut keyword here is important
         if let Some(ref mut fix) = new_fixture {        // because we mutate next
-            // This is in a bit of a weird order but its because of
-            // mutable and inmutable references stuff xd
-            // ik its bad but it works and it can be made better Later
-
-            // Update frontend
+            // Update scores
             let game = &mut fix.matches[date_idx].games[game_idx];
             match team_role {
                 TeamRole::Home => game.home = score,
                 TeamRole::Away => game.away = score,
             }
 
-            // Later for backend
+            // Update backend
             let new_match = UpdateMatch {
                 code,
                 game_idx: game_idx as i32,
@@ -367,27 +364,22 @@ fn score_input(
                 away: game.away,
             };
 
+            wasm_bindgen_futures::spawn_local(async move {
+                Request::post("http://localhost:2000/update_match")
+                    .header("Content-Type", "application/json")
+                    .body(serde_json::to_string(&new_match).unwrap())
+                    .unwrap().send().await.expect("Failed to send get request");
+            });
+
             // Update frontend
             tournament.set(Some(fix.clone()));
-
-            // Update backend 
-            use_effect_with(
-                (),
-                move |_| {
-                    wasm_bindgen_futures::spawn_local(async move {
-                        Request::post("http://localhost:2000/update_match")
-                            .header("Content-Type", "application/json")
-                            .body(serde_json::to_string(&new_match).unwrap())
-                            .unwrap().send().await.expect("Failed to send get request");
-                    });
-                }
-            );
         }
     })
 }
 
 fn parse_score_input(score_input: web_sys::HtmlInputElement) -> i32 {
     let score: i32 = score_input.value().parse().unwrap_or(0);
+
     if (0..=100).contains(&score) { // Check that score is in range
         score
     } else {
@@ -498,5 +490,5 @@ pub struct Date {
 pub struct Tournament {
     pub name: String,
     pub teams: Vec<Team>,
-    pub matches: Vec<Date>
+    pub matches: BTreeMap<usize, Vec<Game>>
 }
