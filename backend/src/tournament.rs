@@ -147,9 +147,7 @@ impl Tournament {
                 code
             ).fetch_optional(db).await.expect("no code") {
                 Some(x) => x,
-                None => {
-                    return None;
-                }
+                None => return None,
             };
             name = row.name;
             tournament_id = row.id.unwrap();
@@ -272,6 +270,8 @@ pub fn create_matches(mut teams: Vec<Team>) -> BTreeMap<usize, Vec<Game>> {
 
     for date_idx in 0..date_num {
         for game_idx in 0..len/2 {
+            // Compiler will tell you "unneeded late initialization" or something..
+            // Ignore it, it is needed :D
             let game;
             if is_pair(date_idx) {
                 game = Game::new(

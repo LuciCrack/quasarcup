@@ -1,4 +1,4 @@
-use web_sys::window;
+use web_sys::{console, window};
 use yew::prelude::*;
 use yew_router::prelude::*;
 use gloo_net::http::Request;
@@ -49,7 +49,7 @@ fn switch(route: Route) -> Html {
     }
 }
 
-// TODO: refractor modules
+// TODO:
 // move function components for each route
 // to a different module or something
 
@@ -255,55 +255,60 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
     // Create the html for the tournament before the actual html! macro
     // TODO:
     // Update scores to the backend WIP
-    // Put more tournament info, not only fixture
-    let tournament_html = (*tournament).as_ref().map(|fix| fix.matches.iter().enumerate().map(|(date_idx, date)| {
+    // Put more tournament info, not only FixtureMakerInput
+    // I hate myself
+
+    let tournament_html = {
         html! {
-            <div>
-                <h3>{ format!("Date {}", date_idx + 1) }</h3>
-                <ul>
-                    { for date.games.iter().enumerate().map(|(game_idx, game)| html! {
-                        <tr>
-                            <td>{ &game.home_team.name }</td>
-                            <td>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    value={ game.home.to_string() }
-                                    oninput={ 
-                                        let code = props.code.clone();
-                                        score_input(
-                                            tournament.clone(), 
-                                            date_idx, game_idx, TeamRole::Home, 
-                                            code,
-                                        ) 
-                                    }
-                                />
-                            </td>
-                            <td>{ "vs" }</td>
-                            <td>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    value={game.away.to_string()}
-                                    oninput={ 
-                                        let code = props.code.clone();
-                                        score_input(
-                                            tournament.clone(), 
-                                            date_idx, game_idx, TeamRole::Away,
-                                            code,
-                                        ) 
-                                    }
-                                />
-                            </td>
-                            <td>{ &game.away_team.name }</td>
-                        </tr>
-                    })}
-                </ul>
-            </div>
+            { for (*tournament).clone().unwrap().matches.iter().map(|(date_idx, games)| html! {
+                <div>
+                    <h3>{ format!("Date {}", date_idx + 1) }</h3>
+                    <ul>
+                        { for games.iter().enumerate().map(|(game_idx, game)| html! {
+                            <tr>
+                                <td>{ &game.home_team.name }</td>
+                                <td>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={ game.home.to_string() }
+                                        oninput={ 
+                                            let code = props.code.clone();
+                                            score_input(
+                                                tournament.clone(), 
+                                                *date_idx, game_idx, TeamRole::Home, 
+                                                code,
+                                            ) 
+                                        }
+                                    />
+                                </td>
+                                <td>{ "vs" }</td>
+                                <td>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={game.away.to_string()}
+                                        oninput={ 
+                                            let code = props.code.clone();
+                                            score_input(
+                                                tournament.clone(), 
+                                                *date_idx, game_idx, TeamRole::Away,
+                                                code,
+                                            ) 
+                                        }
+                                    />
+                                </td>
+                                <td>{ &game.away_team.name }</td>
+                            </tr>
+                        })}
+                    </ul>
+                </div>
+                })
+            }
         }
-    }).collect::<Html>());
+    };
 
     // TODO: Make an enum that does this logic, for better understanding
     // NotLoaded
@@ -316,7 +321,7 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
         None => html!{ "Loading.. Please Wait" },
         Some(false) => html! { "ERROR 404: Tournament Not Found" },
         Some(true) => { 
-            if let Some(t) = tournament_html {
+            if let Some(t) = Some(tournament_html) {
                 html! {
                     <Layout title="Tournament">
                         { t }
@@ -349,7 +354,9 @@ fn score_input(
         let mut new_fixture = (*tournament).clone();    // mut keyword here is important
         if let Some(ref mut fix) = new_fixture {        // because we mutate next
             // Update scores
-            let game = &mut fix.matches[date_idx].games[game_idx];
+            let mut games = fix.matches[&date_idx].clone();
+            let game = &mut games[game_idx];
+
             match team_role {
                 TeamRole::Home => game.home = score,
                 TeamRole::Away => game.away = score,

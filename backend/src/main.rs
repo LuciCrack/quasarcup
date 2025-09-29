@@ -12,7 +12,6 @@ use tournament::Tournament;
 use rand::Rng;
 use serde::Deserialize;
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
-use std::collections::HashMap;
 use tower_http::cors::{Any, CorsLayer};
 
 #[tokio::main]
@@ -86,7 +85,7 @@ async fn update_match(
     State(db): State<SqlitePool>,
     Json(input): Json<UpdateMatch>,
 ) -> axum::Json<bool> {
-    let id = Tournament::get_id(input.code, &db).await.unwrap();
+    let _id = Tournament::get_id(input.code, &db).await.unwrap();
 
     Json ( true )
 }
