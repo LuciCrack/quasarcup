@@ -35,9 +35,9 @@ Here we have our Features list and tracker of what is currently being implemente
 
 Run both frontend and backend servers by following these instructions.
 
-* You must have Rust and Cargo installed
+* You must have [Rust](https://rust-lang.org/) and Cargo (which comes by default with Rust) installed
 * It is recommended to use Trunk and Just for easier development
-* Install trunk with `cargo install trunk` and [Just](https://github.com/casey/just)
+* Install [Trunk](https://github.com/trunk-rs/trunk) with `cargo install trunk` and [Just](https://github.com/casey/just) using `cargo install just`
 * Use `git clone` to get this repo
 * Run both backend and frontend servers using `just start-dev`
-* You should then be able to connect to localhost port 8080 for the frontend [http:](http://127.0.0.1:8080/), and backend request to port 3000
+* You should then be able to connect to localhost port 8080 for the frontend ([http://127.0.0.1:8080](http://127.0.0.1:8080/)), and backend request to port 3000
