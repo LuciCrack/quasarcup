@@ -56,7 +56,7 @@ async fn create_tournament(
     let code = generate_code(&db).await;
 
     // TODO: Add match result for error handling
-    let _result = Tournament::save_to_database(&db, &tournament, &code).await;
+    let _result = Tournament::create_to_database(&db, &tournament, &code).await;
 
     code
 }
@@ -85,9 +85,9 @@ async fn update_match(
     State(db): State<SqlitePool>,
     Json(input): Json<UpdateMatch>,
 ) -> axum::Json<bool> {
-    let _id = Tournament::get_id(input.code, &db).await.unwrap();
-
-    Json ( true )
+    Json ( Tournament::update_match_to_db(input, &db).await
+        .expect("Failed to update database") 
+    )
 }
 
 async fn nuke_database(State(db): State<SqlitePool>, input: String) -> String {

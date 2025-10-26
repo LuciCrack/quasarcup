@@ -2,6 +2,8 @@ use serde::Serialize;
 use sqlx::SqlitePool;
 use std::{collections::{HashMap, BTreeMap}, vec};
 
+use super::UpdateMatch;
+
 pub enum TeamRole {
     Home,
     Away,
@@ -177,7 +179,7 @@ impl Tournament {
         Some(Tournament { name, teams, matches })
     }
 
-    pub async fn save_to_database(
+    pub async fn create_to_database(
         db: &SqlitePool,
         tournament: &Tournament,
         code: &String,
@@ -235,6 +237,25 @@ impl Tournament {
 
         // Return Ok if all goes well, other wise the '?' operator will return a sqlx::Error
         Ok(tournament_id)
+    }
+
+    pub async fn update_match_to_db(update: UpdateMatch, db: &SqlitePool) -> Result<bool, sqlx::Error> {
+        if let Some(id) = Tournament::get_id(update.code, &db).await {
+            // Query and update match
+            let res = sqlx::query!(
+                "UPDATE games
+                 SET home_score = ?, away_score = ?
+                 WHERE tournament_id = ? AND date_idx = ? AND game_idx = ?",
+                update.home, update.away, id, update.date_idx, update.game_idx
+            )
+            .execute(db)
+            .await?;
+            // rows_affected > 0 means we actually updated something
+            Ok(res.rows_affected() > 0)
+        } else {
+            // tournament not found
+            Ok(false)
+        }
     }
 }
 
