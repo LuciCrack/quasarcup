@@ -1,4 +1,4 @@
-use web_sys::{console, window};
+use web_sys::window;
 use yew::prelude::*;
 use yew_router::prelude::*;
 use gloo_net::http::Request;
@@ -101,8 +101,6 @@ fn tournament_create() -> Html {
                 navigator.push(&Route::TournamentView { code });
             });
         })
-
-
     };
 
     html! {
@@ -232,6 +230,7 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
         );
     }
     
+    // Update tournament state handler 
     {
         let code = props.code.clone();
         let tournament = tournament.clone();
@@ -255,12 +254,10 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
     // Create the html for the tournament before the actual html! macro
     // TODO:
     // Update scores to the backend WIP
-    // Put more tournament info, not only FixtureMakerInput
-    // I hate myself
-
-    let tournament_html = {
-        html! {
-            { for (*tournament).clone().unwrap().matches.iter().map(|(date_idx, games)| html! {
+    let tournament_html = match &*tournament {
+        None => html! { "Loading tournament" },
+        Some(t) => html! {
+            { for t.matches.iter().map(|(date_idx, games)| html! {
                 <div>
                     <h3>{ format!("Date {}", date_idx + 1) }</h3>
                     <ul>
@@ -310,13 +307,6 @@ fn tournament_view(props: &TournamentViewProps) -> Html {
         }
     };
 
-    // TODO: Make an enum that does this logic, for better understanding
-    // NotLoaded
-    // NotFound
-    // Found(Tournament) 
-    // maybe await for the tournament_html to finish or something
-    // im not really that familiar with async and web dev yet 
-    // but this works fine so it's cool
     match *exists {
         None => html!{ "Loading.. Please Wait" },
         Some(false) => html! { "ERROR 404: Tournament Not Found" },
@@ -362,6 +352,9 @@ fn score_input(
                 TeamRole::Away => game.away = score,
             }
 
+            // Update frontend
+            tournament.set(Some(fix.clone()));
+
             // Update backend
             let new_match = UpdateMatch {
                 code,
@@ -377,9 +370,6 @@ fn score_input(
                     .body(serde_json::to_string(&new_match).unwrap())
                     .unwrap().send().await.expect("Failed to send get request");
             });
-
-            // Update frontend
-            tournament.set(Some(fix.clone()));
         }
     })
 }
