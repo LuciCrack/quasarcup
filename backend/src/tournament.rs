@@ -250,6 +250,7 @@ impl Tournament {
             )
             .execute(db)
             .await?;
+
             // rows_affected > 0 means we actually updated something
             Ok(res.rows_affected() > 0)
         } else {

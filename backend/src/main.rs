@@ -85,9 +85,11 @@ async fn update_match(
     State(db): State<SqlitePool>,
     Json(input): Json<UpdateMatch>,
 ) -> axum::Json<bool> {
-    Json ( Tournament::update_match_to_db(input, &db).await
-        .expect("Failed to update database") 
-    )
+    let result =  Tournament::update_match_to_db(input, &db).await
+        .expect("Failed to update database");
+
+    println!("Result: {result}");
+    Json (result)
 }
 
 async fn nuke_database(State(db): State<SqlitePool>, input: String) -> String {
