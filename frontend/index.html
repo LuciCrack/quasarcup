@@ -1,13 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <title>Quasar Cup</title>
-      <link data-trunk rel="copy-file" href="/styles.css">
-      <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body>
-    <div id="root"></div>
-      <script type="module">import init from './frontend.js'; init();</script>
-  </body>
+<html>
+<head>
+    <title>Quasar Cup</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="top-bar">
+        <h1>Quasar</h1>
+        <a href="https://github.com/LuciCrack/quasarcup" class="github-link">GitHub</a>
+    </div>
+    
+    <div class="main-content">
+        <h2>What do you want to do?</h2>
+        <a href="create.html" class="button">Create Tournament</a>
+        <form id="access-form">
+            <input type="text" placeholder="Enter 4-letter code" maxlength="4" required>
+            <button type="submit">Access Tournament</button>
+        </form>
+    </div>
+    
+    <script src="scripts.js"></script>
+</body>
 </html>
