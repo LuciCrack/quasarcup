@@ -39,10 +39,14 @@ async fn main() {
         .route("/get_tournament", post(get_tournament))
         .route("/update_match", post(update_match))
         .with_state(db.clone())
-        .layer(cors);
+        .layer(cors)
+        // Serve static files from the frontend/ directory
+        .nest_service("/", ServeDir::new("frontend"))
+        // Fallback to index.html for client-side routing
+        .fallback_service(ServeDir::new("frontend").append_index_html_on_directories(true));
 
     // Tcp Listener
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:2000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
 
     // Run app
     axum::serve(listener, app).await.unwrap();
