@@ -12,7 +12,10 @@ use tournament::Tournament;
 use rand::Rng;
 use serde::Deserialize;
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::{
+    cors::{Any, CorsLayer},
+    services::ServeDir
+};
 
 #[tokio::main]
 async fn main() {
@@ -40,10 +43,10 @@ async fn main() {
         .route("/update_match", post(update_match))
         .with_state(db.clone())
         .layer(cors)
-        // Serve static files from the frontend/ directory
-        .nest_service("/", ServeDir::new("frontend"))
         // Fallback to index.html for client-side routing
-        .fallback_service(ServeDir::new("frontend").append_index_html_on_directories(true));
+        .fallback_service(ServeDir::new("../frontend").append_index_html_on_directories(true));
+
+    println!("Open server on: http://localhost:8000/");
 
     // Tcp Listener
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
