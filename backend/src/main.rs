@@ -36,11 +36,11 @@ async fn main() {
 
     let app = Router::new()
         // Routes with get() or post() methods, each will call a handler
-        .route("/create_tournament", post(create_tournament))
-        .route("/reset_database", post(nuke_database))
-        .route("/exists_tournament", post(exists_tournament))
-        .route("/get_tournament", post(get_tournament))
-        .route("/update_match", post(update_match))
+        .route("/api/create_tournament", post(create_tournament))
+        .route("/api/reset_database", post(nuke_database))
+        .route("/api/exists_tournament", post(exists_tournament))
+        .route("/api/get_tournament", post(get_tournament))
+        .route("/api/update_match", post(update_match))
         .with_state(db.clone())
         .layer(cors)
         // Fallback to index.html for client-side routing
