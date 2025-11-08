@@ -14,12 +14,12 @@ if (createForm) {
         };
         
         try {
-            const response = await fetch(`${API_BASE}/api/tournaments`, {
+            const response = await fetch(`${API_BASE}/api/create_tournaments`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(tournamentData)
+                body: tournamentData,
             });
             
             if (response.ok) {
@@ -57,17 +57,38 @@ async function loadTournament() {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/api/tournaments/${code}`);
+        // Ask if the tournament exists before fetching
+        const exists = await fetch(`${API_BASE}/api/create_tournament`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(code)
+        });
+        if (!exists.ok && exists.json()) {
+            document.body.innerHTML = '<p>Tournament not found</p>';
+            return;
+        }
+
+        // Once we have confirmation we render the tournament
+        const response = await fetch(`${API_BASE}/api/get_tournament`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(code)
+        });
         if (response.ok) {
             const tournament = await response.json();
             displayTournament(tournament);
-        } else {
-            document.body.innerHTML = '<p>Tournament not found</p>';
         }
+
     } catch (error) {
         console.error('Error:', error);
         document.body.innerHTML = '<p>Error loading tournament</p>';
     }
+
+//            
 }
 
 function displayTournament(tournament) {
@@ -81,8 +102,8 @@ function displayTournament(tournament) {
             <div id="matches">
                 ${tournament.matches.map(match => `
                     <div class="match">
-                        ${match.player1} vs ${match.player2} 
-                        - Score: ${match.score1 ?? 0} : ${match.score2 ?? 0}
+                        ${match.home_team} vs ${match.away_team} 
+                        - Score: ${match.home ?? 0} : ${match.away ?? 0}
                     </div>
                 `).join('')}
             </div>
