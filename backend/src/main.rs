@@ -35,12 +35,15 @@ async fn main() {
     // Build the application with routes
 
     let app = Router::new()
-        // Routes with get() or post() methods, each will call a handler
-        .route("/api/create_tournament", post(create_tournament))
-        .route("/api/reset_database", post(nuke_database))
-        .route("/api/exists_tournament", post(exists_tournament))
-        .route("/api/get_tournament", post(get_tournament))
-        .route("/api/update_match", post(update_match))
+        .nest("/api", 
+            Router::new()
+                // Routes with get() or post() methods, each will call a handler
+                .route("/create_tournament", post(create_tournament))
+                .route("/reset_database", post(nuke_database))
+                .route("/exists_tournament", post(exists_tournament))
+                .route("/get_tournament", post(get_tournament))
+                .route("/update_match", post(update_match))
+            )
         .with_state(db.clone())
         .layer(cors)
         // Fallback to index.html for client-side routing
@@ -58,14 +61,14 @@ async fn main() {
 async fn create_tournament(
     State(db): State<SqlitePool>,
     Json(input): Json<CreateTournamentInput>,
-) -> String {
+) -> Json<String> {
     let tournament = Tournament::new(input.tournament_name, input.team_number);
     let code = generate_code(&db).await;
 
     // TODO: Add match result for error handling
     let _result = Tournament::create_to_database(&db, &tournament, &code).await;
 
-    code
+    Json ( code )
 }
 
 async fn exists_tournament(
