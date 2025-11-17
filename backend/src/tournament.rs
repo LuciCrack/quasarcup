@@ -9,7 +9,7 @@ pub enum TeamRole {
     Away,
 }
 
-#[derive(Serialize, Debug, Clone)] // For handling JSON
+#[derive(Serialize, Debug, Clone)]
 pub struct Team {
     pub name: String,
 }
@@ -22,7 +22,7 @@ impl Team {
 
 // TODO:
 // Free Team
-#[derive(Serialize, Debug, Clone)] // For handling JSON
+#[derive(Serialize, Debug, Clone)]
 pub struct Game {
     // Date and game
     pub game_idx: i32,
@@ -158,7 +158,7 @@ impl Tournament {
     }
 
     pub async fn deserialize_from_db(code: String, db: &SqlitePool) -> Option<Tournament> {
-        let (name, tournament_id) = Tournament::get_name_and_id(code, db).await.unwrap();
+        let (name, tournament_id) = Tournament::get_name_and_id(code, db).await.expect("Wrong code! or smth");
 
         let mut teams = vec![];
         {
