@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000';
+const API_BASE = "http://localhost:8000";
 
 // Handle create tournament form
 const createForm = document.getElementById('create-form');
@@ -8,30 +8,30 @@ if (createForm) {
         
         const formData = new FormData(createForm);
         const tournamentData = {
-            name: formData.get('name'),
-            players: parseInt(formData.get('players'))
+            tournament_name: formData.get('name'),
+            team_number: parseInt(formData.get('number'), 10)
             // Add other fields from your form
         };
         
         try {
-            const response = await fetch(`${API_BASE}/api/create_tournaments`, {
+            const response = await fetch(`${API_BASE}/api/create_tournament`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: tournamentData,
+                body: JSON.stringify(tournamentData),
             });
             
             if (response.ok) {
                 const result = await response.json();
                 // Redirect to tournament page with the code
-                window.location.href = `tournament.html?code=${result.code}`;
+                window.location.href = `tournament.html?code=${result}`;
             } else {
                 alert('Error creating tournament');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Failed to create tournament');
+            alert('Failed to fetch the create tournament api');
         }
     });
 }
@@ -58,7 +58,7 @@ async function loadTournament() {
     
     try {
         // Ask if the tournament exists before fetching
-        const exists = await fetch(`${API_BASE}/api/create_tournament`, {
+        const exists = await fetch(`${API_BASE}/api/exists_tournament`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -82,7 +82,6 @@ async function loadTournament() {
             const tournament = await response.json();
             displayTournament(tournament);
         }
-
     } catch (error) {
         console.error('Error:', error);
         document.body.innerHTML = '<p>Error loading tournament</p>';
