@@ -49,7 +49,7 @@ if (accessForm) {
 // Load and display tournament data
 async function loadTournament() {
     const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
+    const code = JSON.stringify(urlParams.get('code').trim().replace(/^"|"$/g, ""));
     
     if (!code) {
         document.body.innerHTML = '<p>No tournament code provided</p>';
@@ -63,9 +63,10 @@ async function loadTournament() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(code)
+            body: code
         });
-        if (!exists.ok && exists.json()) {
+
+        if (!exists.ok || !exists.json()) {
             document.body.innerHTML = '<p>Tournament not found</p>';
             return;
         }
@@ -76,7 +77,7 @@ async function loadTournament() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(code)
+            body: code
         });
         if (response.ok) {
             const tournament = await response.json();
@@ -92,22 +93,18 @@ async function loadTournament() {
 
 function displayTournament(tournament) {
     const content = `
-        <div class="top-bar">
-            <h1>${tournament.name}</h1>
-            <a href="index.html">Home</a>
-        </div>
-        <div class="main-content">
-            <h2>Matches</h2>
-            <div id="matches">
-                ${tournament.matches.map(match => `
-                    <div class="match">
-                        ${match.home_team} vs ${match.away_team} 
-                        - Score: ${match.home ?? 0} : ${match.away ?? 0}
-                    </div>
-                `).join('')}
-            </div>
-        </div>
+        <h1>${tournament.name}</h1>
+        ${Object.entries(tournament.matches).map(([date, games]) => `
+            <h3>Date ${date}</h3>
+            ${games.map(match => `
+                <div class="match">
+                    ${match.home_team.name} vs ${match.away_team.name}
+                    ${match.home_score ?? 0} - ${match.away_score ?? 0}
+                </div>
+            `).join('')}
+        `).join('')}
     `;
+
     document.body.innerHTML = content;
 }
 
