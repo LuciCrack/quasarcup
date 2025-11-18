@@ -12,7 +12,10 @@ use tournament::Tournament;
 use rand::Rng;
 use serde::Deserialize;
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::{
+    cors::{Any, CorsLayer},
+    services::ServeDir
+};
 
 #[tokio::main]
 async fn main() {
@@ -32,17 +35,24 @@ async fn main() {
     // Build the application with routes
 
     let app = Router::new()
-        // Routes with get() or post() methods, each will call a handler
-        .route("/create_tournament", post(create_tournament))
-        .route("/reset_database", post(nuke_database))
-        .route("/exists_tournament", post(exists_tournament))
-        .route("/get_tournament", post(get_tournament))
-        .route("/update_match", post(update_match))
+        .nest("/api", 
+            Router::new()
+                // Routes with get() or post() methods, each will call a handler
+                .route("/create_tournament", post(create_tournament))
+                .route("/reset_database", post(nuke_database))
+                .route("/exists_tournament", post(exists_tournament))
+                .route("/get_tournament", post(get_tournament))
+                .route("/update_match", post(update_match))
+            )
         .with_state(db.clone())
-        .layer(cors);
+        .layer(cors)
+        // Fallback to index.html for client-side routing
+        .fallback_service(ServeDir::new("../frontend").append_index_html_on_directories(true));
+
+    println!("Open server on: http://localhost:8000/");
 
     // Tcp Listener
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:2000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
 
     // Run app
     axum::serve(listener, app).await.unwrap();
@@ -51,14 +61,15 @@ async fn main() {
 async fn create_tournament(
     State(db): State<SqlitePool>,
     Json(input): Json<CreateTournamentInput>,
-) -> String {
+) -> Json<String> {
     let tournament = Tournament::new(input.tournament_name, input.team_number);
     let code = generate_code(&db).await;
 
     // TODO: Add match result for error handling
-    let _result = Tournament::create_to_database(&db, &tournament, &code).await;
+    let result = Tournament::create_to_database(&db, &tournament, &code).await;
+    println!("[DEBUG] Result from creating tournament: {:?}", result);
 
-    code
+    Json ( code )
 }
 
 async fn exists_tournament(

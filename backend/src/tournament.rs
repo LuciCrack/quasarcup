@@ -9,7 +9,7 @@ pub enum TeamRole {
     Away,
 }
 
-#[derive(Serialize, Debug, Clone)] // For handling JSON
+#[derive(Serialize, Debug, Clone)]
 pub struct Team {
     pub name: String,
 }
@@ -22,7 +22,7 @@ impl Team {
 
 // TODO:
 // Free Team
-#[derive(Serialize, Debug, Clone)] // For handling JSON
+#[derive(Serialize, Debug, Clone)]
 pub struct Game {
     // Date and game
     pub game_idx: i32,
@@ -124,6 +124,7 @@ impl Tournament {
     }
 
     pub async fn exists(code: String, db: &SqlitePool) -> bool {
+        let code = code.trim().trim_matches('"').to_string();
         sqlx::query!(
             "SELECT id FROM tournaments WHERE code = ?",
             code
@@ -131,6 +132,8 @@ impl Tournament {
     }
 
     pub async fn get_id(code: String, db: &SqlitePool) -> Option<i64> {
+        let code = code.trim().trim_matches('"').to_string();
+
         match sqlx::query!(
             "SELECT id FROM tournaments WHERE code = ?",
             code
@@ -141,13 +144,16 @@ impl Tournament {
     }
 
     pub async fn get_name_and_id(code: String, db: &SqlitePool) -> Option<(String, i64)> {
+        let code = code.trim().trim_matches('"').to_string();
+        println!("[DEBUG] Searching for code:'{}'", code);
+
         let name;
         let tournament_id;
         {
             let row = match sqlx::query!(
                 "SELECT id, name FROM tournaments WHERE code = ?",
                 code
-            ).fetch_optional(db).await.expect("no code") {
+            ).fetch_optional(db).await.expect("wrong database or smth") {
                 Some(x) => x,
                 None => return None,
             };
@@ -158,7 +164,9 @@ impl Tournament {
     }
 
     pub async fn deserialize_from_db(code: String, db: &SqlitePool) -> Option<Tournament> {
-        let (name, tournament_id) = Tournament::get_name_and_id(code, db).await.unwrap();
+        let code = code.trim().trim_matches('"').to_string();
+
+        let (name, tournament_id) = Tournament::get_name_and_id(code, db).await.expect("Wrong code! or smth");
 
         let mut teams = vec![];
         {
