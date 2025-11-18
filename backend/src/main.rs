@@ -66,7 +66,8 @@ async fn create_tournament(
     let code = generate_code(&db).await;
 
     // TODO: Add match result for error handling
-    let _result = Tournament::create_to_database(&db, &tournament, &code).await;
+    let result = Tournament::create_to_database(&db, &tournament, &code).await;
+    println!("[DEBUG] Result from creating tournament: {:?}", result);
 
     Json ( code )
 }
