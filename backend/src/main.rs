@@ -7,8 +7,8 @@ use axum::{
     http::{self, header},
     routing::post
 };
-
-use tournament::Tournament;
+use std::net::SocketAddr;
+use log::info;
 use rand::Rng;
 use serde::Deserialize;
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
@@ -16,9 +16,14 @@ use tower_http::{
     cors::{Any, CorsLayer},
     services::ServeDir
 };
+use tracing_subscriber::{fmt, EnvFilter, prelude::*};
+
+use tournament::Tournament;
 
 #[tokio::main]
 async fn main() {
+    init_tracing();
+
     // add a Cross-Origin Resource Sharing (cors) middleware
     let cors = CorsLayer::new()
         .allow_origin(Any) // Anyone can access the app
@@ -49,10 +54,11 @@ async fn main() {
         // Fallback to index.html for client-side routing
         .fallback_service(ServeDir::new("../frontend").append_index_html_on_directories(true));
 
-    println!("Open server on: http://localhost:8000/");
-
     // Tcp Listener
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
+    let address = SocketAddr::from(([127, 0, 0, 1], 8000));
+    let listener = tokio::net::TcpListener::bind(address).await.unwrap();
+
+    info!("Open server on: {}", address);
 
     // Run app
     axum::serve(listener, app).await.unwrap();
@@ -143,6 +149,22 @@ async fn generate_code(db: &SqlitePool) -> String {
             return code;
         }
     }
+}
+
+fn init_tracing() {
+    // Build an EnvFilter that reads RUST_LOG, or falls back to defaults.
+    let env_filter = EnvFilter::try_from_default_env()
+        .or_else(|_| EnvFilter::try_new("backend=trace,tower_http=warn")) // Fallback
+        .unwrap();
+
+    // Create a formatting layer (human-readable logs)
+    let fmt_layer = fmt::layer().with_target(false);
+
+    // Compose everything into a subscriber and initialize it
+    tracing_subscriber::registry()
+        .with(env_filter)
+        .with(fmt_layer)
+        .init();
 }
 
 #[derive(Deserialize)] // For handling as JSON 
