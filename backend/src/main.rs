@@ -38,7 +38,6 @@ async fn main() {
         .expect("Failed to connect to database");
 
     // Build the application with routes
-
     let app = Router::new()
         .nest("/api", 
             Router::new()
@@ -58,7 +57,7 @@ async fn main() {
     let address = SocketAddr::from(([127, 0, 0, 1], 8000));
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
 
-    info!("Open server on: {}", address);
+    info!("Open server on: http://{}", address);
 
     // Run app
     axum::serve(listener, app).await.unwrap();
@@ -73,7 +72,7 @@ async fn create_tournament(
 
     // TODO: Add match result for error handling
     let result = Tournament::create_to_database(&db, &tournament, &code).await;
-    println!("[DEBUG] Result from creating tournament: {:?}", result);
+    info!("Result from creating tournament: {:?}", result);
 
     Json ( code )
 }
@@ -105,7 +104,6 @@ async fn update_match(
     let result =  Tournament::update_match_to_db(input, &db).await
         .expect("Failed to update database");
 
-    println!("Result: {result}");
     Json (result)
 }
 
