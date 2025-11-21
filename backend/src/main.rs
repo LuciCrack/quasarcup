@@ -32,7 +32,7 @@ async fn main() {
 
     // Create database
     let db = SqlitePoolOptions::new()
-        .max_connections(5)
+        .max_connections(10)
         .connect("sqlite://quasarcup.db")
         .await
         .expect("Failed to connect to database");
