@@ -72,41 +72,44 @@ impl Game {
 
     async fn get_matches(tournament_id: i64, db: &SqlitePool) -> BTreeMap<usize, Vec<Game>> {
         let rows = sqlx::query!(
-            "SELECT date_idx, game_idx, home_team_id, away_team_id, home_score, away_score 
-            FROM games WHERE tournament_id = ?",
+            "SELECT 
+                g.date_idx, 
+                g.game_idx, 
+                g.home_score, 
+                g.away_score,
+                ht.name as home_team_name,
+                at.name as away_team_name
+            FROM games g
+            JOIN teams ht ON g.home_team_id = ht.id
+            JOIN teams at ON g.away_team_id = at.id
+            WHERE g.tournament_id = ?
+            ORDER BY g.date_idx, g.game_idx",
             tournament_id
-        ).fetch_all(db).await.expect("Failed to fetch matches");
+        )
+        .fetch_all(db)
+        .await
+        .expect("Failed to fetch matches");
 
-        //                              date, games
         let mut matches: BTreeMap<usize, Vec<Game>> = BTreeMap::new();
 
-        for row in rows.iter() {
-            // Get playing teams from id's 
-            let home_name = sqlx::query!(
-                "SELECT name FROM teams WHERE id = ?",
-                row.home_team_id
-            ).fetch_one(db).await.expect("Failed to fetch home team").name;
-            let home_team = Team::new(home_name);
-            let away_name = sqlx::query!(
-                "SELECT name FROM teams WHERE id = ?",
-                row.away_team_id
-            ).fetch_one(db).await.expect("Failed to fetch home team").name;
-            let away_team = Team::new(away_name);
-
-            // Create new game 
+        for row in rows {
             let game = Game::with_score(
-                home_team, 
-                away_team, 
-                row.game_idx as i32, 
-                row.date_idx as i32, 
-                row.home_score as i32, 
-                row.away_score as i32
+                Team::new(row.home_team_name),
+                Team::new(row.away_team_name),
+                row.game_idx as i32,
+                row.date_idx as i32,
+                row.home_score as i32,
+                row.away_score as i32,
             );
-            matches.entry(row.date_idx as usize).or_default().push(game);
+            
+            matches
+                .entry(row.date_idx as usize)
+                .or_default()
+                .push(game);
         }
+
         matches
     }
-
 }
 
 #[derive(Serialize, Debug)]
@@ -166,24 +169,38 @@ impl Tournament {
     pub async fn deserialize_from_db(code: String, db: &SqlitePool) -> Option<Tournament> {
         let code = code.trim().trim_matches('"').to_string();
 
-        let (name, tournament_id) = Tournament::get_name_and_id(code, db).await.expect("Wrong code! or smth");
+        let tournament_data = sqlx::query!(
+            "SELECT 
+                t.id as tournament_id,
+                t.name as tournament_name,
+                team.name as team_name
+            FROM tournaments t
+            LEFT JOIN teams team ON t.id = team.tournament_id
+            WHERE t.code = ?",
+            code
+        )
+        .fetch_all(db)
+        .await
+        .ok()?;
 
-        let mut teams = vec![];
-        {
-            let rows = sqlx::query!(
-                "SELECT name FROM teams WHERE tournament_id = ?",
-                tournament_id
-            ).fetch_all(db).await.expect("Failed to fetch teams");
-
-            for row in rows.iter() {
-                teams.push(
-                    Team::new(row.name.clone())
-                );
-            }
+        if tournament_data.is_empty() {
+            return None;
         }
 
+        // Extract tournament info from first row
+        let first_row = &tournament_data[0];
+        let name = first_row.tournament_name.clone();
+        let tournament_id = first_row.tournament_id?;
+
+        // Build teams list
+        let mut teams = Vec::new();
+        for row in &tournament_data {
+            teams.push(Team::new(row.team_name.clone()));
+        }
+
+        // Get matches
         let matches = Game::get_matches(tournament_id, db).await;
-            
+
         Some(Tournament { name, teams, matches })
     }
 
