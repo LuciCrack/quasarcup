@@ -209,58 +209,94 @@ impl Tournament {
         tournament: &Tournament,
         code: &String,
     ) -> Result<i64, sqlx::Error> {
-        // First create a tournament, returning its id for later use.
-        let tournament_id = sqlx::query!(
+
+        // Use transaction for atomic operations
+        let mut transaction = db.begin().await?;
+
+        // Create tournament
+        let tournament_row = sqlx::query!(
             "INSERT INTO tournaments (name, code) VALUES (?, ?) RETURNING id",
             tournament.name,
             code
         )
-        .fetch_one(db)
-        .await?
-        .id;
+        .fetch_one(&mut *transaction)
+        .await?;
 
-        // Create teams, hashing name and id for later use
-        let mut team_id_map = HashMap::new();
-        for team in tournament.teams.iter() {
-            if team.name == "FREE" {
-                continue;
-            } // Don't insert "FREE" team
+        let tournament_id = tournament_row.id;
 
-            let t = sqlx::query!(
-                "INSERT INTO teams (tournament_id, name) VALUES (?, ?) RETURNING id",
-                tournament_id,
-                team.name
-            )
-            .fetch_one(db)
-            .await?;
+        // Batch insert teams
+        let team_names: Vec<&String> = tournament.teams
+            .iter()
+            .filter(|team| team.name != "FREE")
+            .map(|team| &team.name)
+            .collect();
 
-            team_id_map.insert(team.name.clone(), t.id); // Insert team to HashMap
+        if !team_names.is_empty() {
+            let mut query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO teams (tournament_id, name) "
+            );
+            
+            query_builder.push_values(team_names, |mut b, team_name| {
+                b.push_bind(tournament_id)
+                 .push_bind(team_name);
+            });
+
+            query_builder.build().execute(&mut *transaction).await?;
         }
 
-        // Finally, insert every game from every date into database
+        // Get team IDs in a single query
+        let team_rows = sqlx::query!(
+            "SELECT name, id FROM teams WHERE tournament_id = ?",
+            tournament_id
+        )
+        .fetch_all(&mut *transaction)
+        .await?;
+
+        let team_id_map: HashMap<String, i64> = team_rows
+            .into_iter()
+            .map(|row| (row.name, row.id))
+            .collect();
+
+        // Batch insert games
+        let mut games_to_insert = Vec::new();
         for games in tournament.matches.values() {
             for game in games.iter() {
-                // Dont create games for FREE dates
-                if game.home_team.name == "FREE" || game.away_team.name == "FREE" {
-                    continue;
-                }
-
-                // Ensure that team exists (it should always)
-                if let (Some(&home_team_id), Some(&away_team_id)) = (
-                    team_id_map.get(&game.home_team.name),
-                    team_id_map.get(&game.away_team.name),
-                ) {
-                    // Insert game
-                    sqlx::query!(
-                        "INSERT INTO games (tournament_id, date_idx, game_idx, home_team_id, away_team_id) 
-                        values (?, ?, ?, ?, ?)", 
-                        tournament_id, game.date_idx, game.game_idx, home_team_id, away_team_id
-                    ).execute(db).await?;
+                if game.home_team.name != "FREE" && game.away_team.name != "FREE" {
+                    if let (Some(&home_id), Some(&away_id)) = (
+                        team_id_map.get(&game.home_team.name),
+                        team_id_map.get(&game.away_team.name),
+                    ) {
+                        games_to_insert.push((
+                            tournament_id,
+                            game.date_idx,
+                            game.game_idx,
+                            home_id,
+                            away_id,
+                        ));
+                    }
                 }
             }
         }
 
-        // Return Ok if all goes well, other wise the '?' operator will return a sqlx::Error
+        if !games_to_insert.is_empty() {
+            let mut query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO games (tournament_id, date_idx, game_idx, home_team_id, away_team_id) "
+            );
+            
+            query_builder.push_values(games_to_insert, |mut b, (tournament_id, date_idx, game_idx, home_id, away_id)| {
+                b.push_bind(tournament_id)
+                 .push_bind(date_idx)
+                 .push_bind(game_idx)
+                 .push_bind(home_id)
+                 .push_bind(away_id);
+            });
+
+            query_builder.build().execute(&mut *transaction).await?;
+        }
+
+        // Commit all changes
+        transaction.commit().await?;
+
         Ok(tournament_id)
     }
 
