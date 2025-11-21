@@ -1,4 +1,5 @@
 use serde::Serialize;
+use log::{info, debug};
 use sqlx::SqlitePool;
 use std::{collections::{HashMap, BTreeMap}, vec};
 
@@ -148,7 +149,7 @@ impl Tournament {
 
     pub async fn get_name_and_id(code: String, db: &SqlitePool) -> Option<(String, i64)> {
         let code = code.trim().trim_matches('"').to_string();
-        println!("[DEBUG] Searching for code:'{}'", code);
+        debug!("Searching for code:'{}'", code);
 
         let name;
         let tournament_id;
@@ -169,6 +170,7 @@ impl Tournament {
     pub async fn deserialize_from_db(code: String, db: &SqlitePool) -> Option<Tournament> {
         let code = code.trim().trim_matches('"').to_string();
 
+        // Single query for all tournament data
         let tournament_data = sqlx::query!(
             "SELECT 
                 t.id as tournament_id,
@@ -187,7 +189,7 @@ impl Tournament {
             return None;
         }
 
-        // Extract tournament info from first row
+        // Extract tournament info from first row (name and id)
         let first_row = &tournament_data[0];
         let name = first_row.tournament_name.clone();
         let tournament_id = first_row.tournament_id?;
@@ -209,7 +211,6 @@ impl Tournament {
         tournament: &Tournament,
         code: &String,
     ) -> Result<i64, sqlx::Error> {
-
         // Use transaction for atomic operations
         let mut transaction = db.begin().await?;
 
@@ -244,7 +245,7 @@ impl Tournament {
             query_builder.build().execute(&mut *transaction).await?;
         }
 
-        // Get team IDs in a single query
+        // Get team IDs
         let team_rows = sqlx::query!(
             "SELECT name, id FROM teams WHERE tournament_id = ?",
             tournament_id
@@ -297,6 +298,8 @@ impl Tournament {
         // Commit all changes
         transaction.commit().await?;
 
+        // Ok transactions are amazing wtf
+        info!("Successfully created and stored tournament {:?}", tournament.name);
         Ok(tournament_id)
     }
 
