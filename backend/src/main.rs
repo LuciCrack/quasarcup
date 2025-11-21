@@ -1,22 +1,21 @@
 mod tournament;
 
 use axum::{
-    Json, 
-    Router, 
-    extract::State, 
+    Json, Router,
+    extract::State,
     http::{self, header},
-    routing::post
+    routing::post,
 };
-use std::net::SocketAddr;
 use log::info;
 use rand::Rng;
 use serde::Deserialize;
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
+use std::net::SocketAddr;
 use tower_http::{
     cors::{Any, CorsLayer},
-    services::ServeDir
+    services::ServeDir,
 };
-use tracing_subscriber::{fmt, EnvFilter, prelude::*};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 use tournament::Tournament;
 
@@ -39,15 +38,16 @@ async fn main() {
 
     // Build the application with routes
     let app = Router::new()
-        .nest("/api", 
+        .nest(
+            "/api",
             Router::new()
                 // Routes with get() or post() methods, each will call a handler
                 .route("/create_tournament", post(create_tournament))
                 .route("/reset_database", post(nuke_database))
                 .route("/exists_tournament", post(exists_tournament))
                 .route("/get_tournament", post(get_tournament))
-                .route("/update_match", post(update_match))
-            )
+                .route("/update_match", post(update_match)),
+        )
         .with_state(db.clone())
         .layer(cors)
         // Fallback to index.html for client-side routing
@@ -72,18 +72,13 @@ async fn create_tournament(
 
     // TODO: Add match result for error handling
     let result = Tournament::create_to_database(&db, &tournament, &code).await;
-    info!("Result from creating tournament: {:?}", result);
+    info!("Result from creating tournament, id: {:?}", result);
 
-    Json ( code )
+    Json(code)
 }
 
-async fn exists_tournament(
-    State(db): State<SqlitePool>, 
-    code: String
-) -> axum::Json<bool> {
-    Json (
-        Tournament::exists(code, &db).await
-    )
+async fn exists_tournament(State(db): State<SqlitePool>, code: String) -> axum::Json<bool> {
+    Json(Tournament::exists(code, &db).await)
 }
 
 async fn get_tournament(
@@ -92,19 +87,18 @@ async fn get_tournament(
 ) -> axum::Json<Option<Tournament>> {
     let tournament = Tournament::deserialize_from_db(code, &db).await;
 
-    Json(
-        tournament
-    )
+    Json(tournament)
 }
 
 async fn update_match(
     State(db): State<SqlitePool>,
     Json(input): Json<UpdateMatch>,
 ) -> axum::Json<bool> {
-    let result =  Tournament::update_match_to_db(input, &db).await
+    let result = Tournament::update_match_to_db(input, &db)
+        .await
         .expect("Failed to update database");
 
-    Json (result)
+    Json(result)
 }
 
 async fn nuke_database(State(db): State<SqlitePool>, input: String) -> String {

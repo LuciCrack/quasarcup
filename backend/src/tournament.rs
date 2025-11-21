@@ -1,7 +1,10 @@
+use log::{debug, info};
 use serde::Serialize;
-use log::{info, debug};
 use sqlx::SqlitePool;
-use std::{collections::{HashMap, BTreeMap}, vec};
+use std::{
+    collections::{BTreeMap, HashMap},
+    vec,
+};
 
 use super::UpdateMatch;
 
@@ -47,7 +50,14 @@ impl Game {
             away: 0,
         }
     }
-    fn with_score(home_team: Team, away_team: Team, game_idx: i32, date_idx: i32, home: i32, away: i32) -> Game {
+    fn with_score(
+        home_team: Team,
+        away_team: Team,
+        game_idx: i32,
+        date_idx: i32,
+        home: i32,
+        away: i32,
+    ) -> Game {
         Game {
             game_idx,
             date_idx,
@@ -102,11 +112,8 @@ impl Game {
                 row.home_score as i32,
                 row.away_score as i32,
             );
-            
-            matches
-                .entry(row.date_idx as usize)
-                .or_default()
-                .push(game);
+
+            matches.entry(row.date_idx as usize).or_default().push(game);
         }
 
         matches
@@ -117,31 +124,37 @@ impl Game {
 pub struct Tournament {
     pub name: String,
     pub teams: Vec<Team>,
-    pub matches: BTreeMap<usize, Vec<Game>>
+    pub matches: BTreeMap<usize, Vec<Game>>,
 }
 
 impl Tournament {
     pub fn new(name: String, team_number: usize) -> Tournament {
         let teams = create_teams(team_number);
         let matches = create_matches(teams.clone());
-        Tournament { name, teams, matches }
+        Tournament {
+            name,
+            teams,
+            matches,
+        }
     }
 
     pub async fn exists(code: String, db: &SqlitePool) -> bool {
         let code = code.trim().trim_matches('"').to_string();
-        sqlx::query!(
-            "SELECT id FROM tournaments WHERE code = ?",
-            code
-        ).fetch_optional(db).await.expect("Failed to fetch id").is_some()
+        sqlx::query!("SELECT id FROM tournaments WHERE code = ?", code)
+            .fetch_optional(db)
+            .await
+            .expect("Failed to fetch id")
+            .is_some()
     }
 
     pub async fn get_id(code: String, db: &SqlitePool) -> Option<i64> {
         let code = code.trim().trim_matches('"').to_string();
 
-        match sqlx::query!(
-            "SELECT id FROM tournaments WHERE code = ?",
-            code
-        ).fetch_optional(db).await.expect("no code") {
+        match sqlx::query!("SELECT id FROM tournaments WHERE code = ?", code)
+            .fetch_optional(db)
+            .await
+            .expect("no code")
+        {
             Some(x) => x.id,
             _ => None,
         }
@@ -154,10 +167,11 @@ impl Tournament {
         let name;
         let tournament_id;
         {
-            let row = match sqlx::query!(
-                "SELECT id, name FROM tournaments WHERE code = ?",
-                code
-            ).fetch_optional(db).await.expect("wrong database or smth") {
+            let row = match sqlx::query!("SELECT id, name FROM tournaments WHERE code = ?", code)
+                .fetch_optional(db)
+                .await
+                .expect("wrong database or smth")
+            {
                 Some(x) => x,
                 None => return None,
             };
@@ -203,7 +217,11 @@ impl Tournament {
         // Get matches
         let matches = Game::get_matches(tournament_id, db).await;
 
-        Some(Tournament { name, teams, matches })
+        Some(Tournament {
+            name,
+            teams,
+            matches,
+        })
     }
 
     pub async fn create_to_database(
@@ -226,20 +244,19 @@ impl Tournament {
         let tournament_id = tournament_row.id;
 
         // Batch insert teams
-        let team_names: Vec<&String> = tournament.teams
+        let team_names: Vec<&String> = tournament
+            .teams
             .iter()
             .filter(|team| team.name != "FREE")
             .map(|team| &team.name)
             .collect();
 
         if !team_names.is_empty() {
-            let mut query_builder = sqlx::QueryBuilder::new(
-                "INSERT INTO teams (tournament_id, name) "
-            );
-            
+            let mut query_builder =
+                sqlx::QueryBuilder::new("INSERT INTO teams (tournament_id, name) ");
+
             query_builder.push_values(team_names, |mut b, team_name| {
-                b.push_bind(tournament_id)
-                 .push_bind(team_name);
+                b.push_bind(tournament_id).push_bind(team_name);
             });
 
             query_builder.build().execute(&mut *transaction).await?;
@@ -281,16 +298,19 @@ impl Tournament {
 
         if !games_to_insert.is_empty() {
             let mut query_builder = sqlx::QueryBuilder::new(
-                "INSERT INTO games (tournament_id, date_idx, game_idx, home_team_id, away_team_id) "
+                "INSERT INTO games (tournament_id, date_idx, game_idx, home_team_id, away_team_id) ",
             );
-            
-            query_builder.push_values(games_to_insert, |mut b, (tournament_id, date_idx, game_idx, home_id, away_id)| {
-                b.push_bind(tournament_id)
-                 .push_bind(date_idx)
-                 .push_bind(game_idx)
-                 .push_bind(home_id)
-                 .push_bind(away_id);
-            });
+
+            query_builder.push_values(
+                games_to_insert,
+                |mut b, (tournament_id, date_idx, game_idx, home_id, away_id)| {
+                    b.push_bind(tournament_id)
+                        .push_bind(date_idx)
+                        .push_bind(game_idx)
+                        .push_bind(home_id)
+                        .push_bind(away_id);
+                },
+            );
 
             query_builder.build().execute(&mut *transaction).await?;
         }
@@ -299,18 +319,28 @@ impl Tournament {
         transaction.commit().await?;
 
         // Ok transactions are amazing wtf
-        info!("Successfully created and stored tournament {:?}", tournament.name);
+        info!(
+            "Successfully created and stored tournament {:?}",
+            tournament.name
+        );
         Ok(tournament_id)
     }
 
-    pub async fn update_match_to_db(update: UpdateMatch, db: &SqlitePool) -> Result<bool, sqlx::Error> {
+    pub async fn update_match_to_db(
+        update: UpdateMatch,
+        db: &SqlitePool,
+    ) -> Result<bool, sqlx::Error> {
         if let Some(id) = Tournament::get_id(update.code, &db).await {
             // Query and update match
             let res = sqlx::query!(
                 "UPDATE games
                  SET home_score = ?, away_score = ?
                  WHERE tournament_id = ? AND date_idx = ? AND game_idx = ?",
-                update.home, update.away, id, update.date_idx, update.game_idx
+                update.home,
+                update.away,
+                id,
+                update.date_idx,
+                update.game_idx
             )
             .execute(db)
             .await?;
@@ -324,13 +354,10 @@ impl Tournament {
     }
 }
 
-
 fn create_teams(n: usize) -> Vec<Team> {
     let mut teams = vec![];
     for i in 1..=n {
-        teams.push(
-            Team::new(format!("team{i}"))
-        );
+        teams.push(Team::new(format!("team{i}")));
     }
 
     teams
@@ -339,7 +366,7 @@ fn create_teams(n: usize) -> Vec<Team> {
 pub fn create_matches(mut teams: Vec<Team>) -> BTreeMap<usize, Vec<Game>> {
     // Create Vector of Dates (fixture)
     // One way, Free For All using Round-Robin algorithm
-    // For more information on Round-Robin for sports visit 
+    // For more information on Round-Robin for sports visit
     // https://medium.com/coinmonks/sports-scheduling-simplified-the-power-of-the-rotation-algorithm-in-round-robin-tournament-eedfbd3fee8e
 
     // Free date if not pair amount of teams
@@ -355,7 +382,7 @@ pub fn create_matches(mut teams: Vec<Team>) -> BTreeMap<usize, Vec<Game>> {
     let mut matches: BTreeMap<usize, Vec<Game>> = BTreeMap::new();
 
     for date_idx in 0..date_num {
-        for game_idx in 0..len/2 {
+        for game_idx in 0..len / 2 {
             // Compiler will tell you "unneeded late initialization" or something..
             // Ignore it, it is needed :D
             let game;
