@@ -1,24 +1,28 @@
 mod tournament;
 
 use axum::{
-    Json, 
-    Router, 
-    extract::State, 
+    Json, Router,
+    extract::State,
     http::{self, header},
-    routing::post
+    routing::post,
 };
-
-use tournament::Tournament;
+use log::info;
 use rand::Rng;
 use serde::Deserialize;
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
+use std::net::SocketAddr;
 use tower_http::{
     cors::{Any, CorsLayer},
-    services::ServeDir
+    services::ServeDir,
 };
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+
+use tournament::Tournament;
 
 #[tokio::main]
 async fn main() {
+    init_tracing();
+
     // add a Cross-Origin Resource Sharing (cors) middleware
     let cors = CorsLayer::new()
         .allow_origin(Any) // Anyone can access the app
@@ -27,32 +31,33 @@ async fn main() {
 
     // Create database
     let db = SqlitePoolOptions::new()
-        .max_connections(5)
+        .max_connections(10)
         .connect("sqlite://quasarcup.db")
         .await
         .expect("Failed to connect to database");
 
     // Build the application with routes
-
     let app = Router::new()
-        .nest("/api", 
+        .nest(
+            "/api",
             Router::new()
                 // Routes with get() or post() methods, each will call a handler
                 .route("/create_tournament", post(create_tournament))
                 .route("/reset_database", post(nuke_database))
                 .route("/exists_tournament", post(exists_tournament))
                 .route("/get_tournament", post(get_tournament))
-                .route("/update_match", post(update_match))
-            )
+                .route("/update_match", post(update_match)),
+        )
         .with_state(db.clone())
         .layer(cors)
         // Fallback to index.html for client-side routing
         .fallback_service(ServeDir::new("../frontend").append_index_html_on_directories(true));
 
-    println!("Open server on: http://localhost:8000/");
-
     // Tcp Listener
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
+    let address = SocketAddr::from(([127, 0, 0, 1], 8000));
+    let listener = tokio::net::TcpListener::bind(address).await.unwrap();
+
+    info!("Open server on: http://{}", address);
 
     // Run app
     axum::serve(listener, app).await.unwrap();
@@ -67,18 +72,13 @@ async fn create_tournament(
 
     // TODO: Add match result for error handling
     let result = Tournament::create_to_database(&db, &tournament, &code).await;
-    println!("[DEBUG] Result from creating tournament: {:?}", result);
+    info!("Result from creating tournament, id: {:?}", result);
 
-    Json ( code )
+    Json(code)
 }
 
-async fn exists_tournament(
-    State(db): State<SqlitePool>, 
-    code: String
-) -> axum::Json<bool> {
-    Json (
-        Tournament::exists(code, &db).await
-    )
+async fn exists_tournament(State(db): State<SqlitePool>, code: String) -> axum::Json<bool> {
+    Json(Tournament::exists(code, &db).await)
 }
 
 async fn get_tournament(
@@ -87,20 +87,18 @@ async fn get_tournament(
 ) -> axum::Json<Option<Tournament>> {
     let tournament = Tournament::deserialize_from_db(code, &db).await;
 
-    Json(
-        tournament
-    )
+    Json(tournament)
 }
 
 async fn update_match(
     State(db): State<SqlitePool>,
     Json(input): Json<UpdateMatch>,
 ) -> axum::Json<bool> {
-    let result =  Tournament::update_match_to_db(input, &db).await
+    let result = Tournament::update_match_to_db(input, &db)
+        .await
         .expect("Failed to update database");
 
-    println!("Result: {result}");
-    Json (result)
+    Json(result)
 }
 
 async fn nuke_database(State(db): State<SqlitePool>, input: String) -> String {
@@ -143,6 +141,22 @@ async fn generate_code(db: &SqlitePool) -> String {
             return code;
         }
     }
+}
+
+fn init_tracing() {
+    // Build an EnvFilter that reads RUST_LOG, or falls back to defaults.
+    let env_filter = EnvFilter::try_from_default_env()
+        .or_else(|_| EnvFilter::try_new("backend=trace,tower_http=warn")) // Fallback
+        .unwrap();
+
+    // Create a formatting layer (human-readable logs)
+    let fmt_layer = fmt::layer().with_target(false);
+
+    // Compose everything into a subscriber and initialize it
+    tracing_subscriber::registry()
+        .with(env_filter)
+        .with(fmt_layer)
+        .init();
 }
 
 #[derive(Deserialize)] // For handling as JSON 
